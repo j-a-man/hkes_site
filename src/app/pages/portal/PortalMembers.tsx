@@ -7,14 +7,14 @@ export default function PortalMembers() {
   const [roleFilter, setRoleFilter] = useState('All');
 
   const members = [
-    { id: 1, name: 'Sarah Li', role: 'President', email: 'sli@binghamton.edu', joined: 'Fall 2024', avatar: 'SL' },
-    { id: 2, name: 'Michael Tam', role: 'Vice President', email: 'mtam@binghamton.edu', joined: 'Fall 2024', avatar: 'MT' },
-    { id: 3, name: 'Emily Chen', role: 'Secretary', email: 'echen@binghamton.edu', joined: 'Spring 2025', avatar: 'EC' },
-    { id: 4, name: 'Alex Chen', role: 'Publicity Chair', email: 'achen@binghamton.edu', joined: 'Fall 2024', avatar: 'AC' },
-    { id: 5, name: 'David Wong', role: 'Outreach Chair', email: 'dwong@binghamton.edu', joined: 'Spring 2025', avatar: 'DW' },
-    { id: 6, name: 'Jessica Liu', role: 'Treasurer', email: 'jliu@binghamton.edu', joined: 'Fall 2024', avatar: 'JL' },
-    { id: 7, name: 'Kevin Zhang', role: 'Historian', email: 'kzhang@binghamton.edu', joined: 'Spring 2025', avatar: 'KZ' },
-    { id: 8, name: 'Amy Ng', role: 'Member', email: 'ang@binghamton.edu', joined: 'Fall 2025', avatar: 'AN' },
+    { id: 1, name: 'Katherine Chan', role: 'President', email: 'sli@binghamton.edu', joined: 'Fall 2024', avatar: 'SL' },
+    { id: 2, name: 'Dylan Gravina', role: 'Vice President', email: 'mtam@binghamton.edu', joined: 'Fall 2024', avatar: 'MT' },
+    { id: 3, name: 'Sharon Lin', role: 'Secretary', email: 'echen@binghamton.edu', joined: 'Spring 2025', avatar: 'EC' },
+    { id: 4, name: 'Niki Lam', role: 'Publicity Chair', email: 'achen@binghamton.edu', joined: 'Fall 2024', avatar: 'AC' },
+    { id: 5, name: 'Audrey Lee', role: 'Outreach Chair', email: 'dwong@binghamton.edu', joined: 'Spring 2025', avatar: 'DW' },
+    { id: 6, name: 'Rain Guan', role: 'Treasurer', email: 'jliu@binghamton.edu', joined: 'Fall 2024', avatar: 'JL' },
+    { id: 7, name: 'Jaylin Man', role: 'Historian', email: 'kzhang@binghamton.edu', joined: 'Spring 2025', avatar: 'KZ' },
+    { id: 8, name: 'TBD', role: 'Member', email: 'ang@binghamton.edu', joined: 'Fall 2025', avatar: 'AN' },
   ];
 
   const roles = ['All', 'President', 'Vice President', 'Secretary', 'Treasurer', 'Publicity Chair', 'Outreach Chair', 'Historian', 'Member'];
@@ -49,7 +49,7 @@ export default function PortalMembers() {
 
   const filteredMembers = members.filter(member => {
     const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         member.email.toLowerCase().includes(searchTerm.toLowerCase());
+      member.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'All' || member.role === roleFilter;
     return matchesSearch && matchesRole;
   });

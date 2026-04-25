@@ -48,10 +48,10 @@ export default function Home() {
               Binghamton University · Est. 2018
             </p>
 
-            <h1 className="flex flex-col text-[70px] sm:text-[90px] leading-[0.9] tracking-tighter mb-6">
+            <h1 className="flex flex-col text-5xl sm:text-[70px] lg:text-[90px] leading-tight sm:leading-[0.9] tracking-tighter mb-6">
               <span className="font-black text-[#fa4e5b] drop-shadow-sm">Where Binghamton Meets</span>
               <span
-                className="font-light text-transparent mt-2"
+                className="font-light text-transparent mt-2 sm:mt-0"
                 style={{ WebkitTextStroke: '2px #ffbba1' }}
               >
                 Hong Kong

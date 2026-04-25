@@ -32,7 +32,7 @@ export default function PortalDashboard() {
     <PortalLayout>
       <div className="p-8">
         <div className="mb-8">
-          <h1 className="text-4xl mb-2">Welcome back, Alex 👋</h1>
+          <h1 className="text-4xl mb-2">Welcome back, Jaylin 👋</h1>
           <p className="text-[#555555]">Here's what's happening with HKES</p>
         </div>
 

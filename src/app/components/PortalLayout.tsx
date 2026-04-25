@@ -8,7 +8,7 @@ interface PortalLayoutProps {
   userRole?: string;
 }
 
-export default function PortalLayout({ children, userName = 'Alex Chen', userRole = 'Publicity Chair' }: PortalLayoutProps) {
+export default function PortalLayout({ children, userName = 'Jaylin Man', userRole = 'Publicity Chair' }: PortalLayoutProps) {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -42,7 +42,7 @@ export default function PortalLayout({ children, userName = 'Alex Chen', userRol
             alt="HKES Logo"
             className="h-12 w-auto drop-shadow-md"
           />
-          <button 
+          <button
             className="lg:hidden text-gray-400 hover:text-white transition-colors"
             onClick={() => setMobileMenuOpen(false)}
           >
@@ -74,11 +74,10 @@ export default function PortalLayout({ children, userName = 'Alex Chen', userRol
                 key={item.path}
                 to={item.path}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 font-medium ${
-                  isActive
+                className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 font-medium ${isActive
                     ? 'bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white shadow-[0_4px_15px_rgba(250,78,91,0.3)] translate-x-1'
                     : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                }`}
+                  }`}
               >
                 <Icon size={20} className={isActive ? 'text-white' : 'text-gray-400'} />
                 <span>{item.name}</span>
@@ -102,40 +101,39 @@ export default function PortalLayout({ children, userName = 'Alex Chen', userRol
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-['Poppins']">
-      
+
       {/* Mobile Header Overlay to show Hamburger */}
       <div className="lg:hidden fixed top-0 w-full h-16 bg-white/90 backdrop-blur-md z-40 border-b border-gray-100 flex items-center px-4 shadow-sm">
-         <button 
-           onClick={() => setMobileMenuOpen(true)}
-           className="p-2 text-[#fa4e5b] hover:bg-red-50 rounded-lg transition-colors"
-         >
-            <Menu size={28} />
-         </button>
-         <span className="ml-4 font-bold text-gray-800 tracking-wider">HKES PORTAL</span>
+        <button
+          onClick={() => setMobileMenuOpen(true)}
+          className="p-2 text-[#fa4e5b] hover:bg-red-50 rounded-lg transition-colors"
+        >
+          <Menu size={28} />
+        </button>
+        <span className="ml-4 font-bold text-gray-800 tracking-wider">HKES PORTAL</span>
       </div>
 
       {/* Mobile Sidebar Overlay */}
       {mobileMenuOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 bg-black/50 z-[45] transition-opacity"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
       {/* Fixed Sidebar */}
-      <aside 
-        className={`fixed inset-y-0 left-0 w-72 bg-[#1a1b1e] text-white flex flex-col z-50 transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+      <aside
+        className={`fixed inset-y-0 left-0 w-72 bg-[#1a1b1e] text-white flex flex-col z-50 transition-transform duration-300 ease-in-out lg:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <SidebarContent />
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 min-h-screen lg:ml-72 pt-16 lg:pt-0 bg-[#FFF8F6]">
-         <div className="max-w-6xl mx-auto p-4 sm:p-8 lg:p-12 w-full h-full min-h-screen flex flex-col">
+        <div className="max-w-6xl mx-auto p-4 sm:p-8 lg:p-12 w-full h-full min-h-screen flex flex-col">
           {children}
-         </div>
+        </div>
       </main>
     </div>
   );
