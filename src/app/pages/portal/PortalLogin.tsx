@@ -17,13 +17,13 @@ export default function PortalLogin() {
       <div className="absolute bottom-20 right-20 w-80 h-80 bg-[#DE2910] rounded-full opacity-20 blur-3xl"></div>
 
       <svg className="absolute bottom-0 left-0 right-0 w-full h-32 opacity-10" viewBox="0 0 1200 120" preserveAspectRatio="none">
-        <path d="M0 40 L150 60 L300 50 L450 70 L600 55 L750 65 L900 50 L1050 60 L1200 45 L1200 120 L0 120 Z" fill="white"/>
+        <path d="M0 40 L150 60 L300 50 L450 70 L600 55 L750 65 L900 50 L1050 60 L1200 45 L1200 120 L0 120 Z" fill="white" />
       </svg>
 
-      <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 w-full max-w-md relative z-10">
+      <div className="bg-white dark:bg-[#1a1b1e] rounded-3xl shadow-2xl p-8 md:p-12 w-full max-w-md relative z-10">
         <div className="text-center mb-8">
           <img
-            src="/src/imports/merchlogo_designs_(1).png"
+            src="/merchlogo_designs_(1).png"
             alt="HKES Logo"
             className="h-20 w-20 mx-auto mb-4"
           />

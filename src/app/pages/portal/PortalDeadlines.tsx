@@ -62,7 +62,7 @@ export default function PortalDeadlines() {
           </button>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+        <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm mb-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex gap-2">
               <button
@@ -70,7 +70,7 @@ export default function PortalDeadlines() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                   view === 'list'
                     ? 'bg-[#DE2910] text-white'
-                    : 'bg-gray-100 text-[#1A1A1A] hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-white/5 text-[#1A1A1A] hover:bg-gray-200 dark:bg-white/10'
                 }`}
               >
                 <List size={20} />
@@ -81,7 +81,7 @@ export default function PortalDeadlines() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                   view === 'calendar'
                     ? 'bg-[#DE2910] text-white'
-                    : 'bg-gray-100 text-[#1A1A1A] hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-white/5 text-[#1A1A1A] hover:bg-gray-200 dark:bg-white/10'
                 }`}
               >
                 <CalendarIcon size={20} />
@@ -97,7 +97,7 @@ export default function PortalDeadlines() {
                   className={`px-4 py-2 rounded-full text-sm transition-colors ${
                     filter === chair
                       ? 'bg-[#DE2910] text-white'
-                      : 'bg-gray-100 text-[#1A1A1A] hover:bg-gray-200'
+                      : 'bg-gray-100 dark:bg-white/5 text-[#1A1A1A] hover:bg-gray-200 dark:bg-white/10'
                   }`}
                 >
                   {chair}
@@ -108,7 +108,7 @@ export default function PortalDeadlines() {
         </div>
 
         {view === 'list' ? (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-sm overflow-hidden">
             <table className="w-full">
               <thead className="bg-[#FFF8F6]">
                 <tr>
@@ -139,7 +139,7 @@ export default function PortalDeadlines() {
             </table>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm">
             <div className="grid grid-cols-7 gap-2 mb-4">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
                 <div key={day} className="text-center text-[#555555] p-2">

@@ -46,7 +46,7 @@ export default function Fundraisers() {
         </div>
       </section>
 
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white dark:bg-[#1a1b1e]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-br from-[#FFF8F6] to-white rounded-3xl shadow-2xl p-8 md:p-12 border border-border">
             <div className="flex justify-between items-start mb-6">
@@ -64,7 +64,7 @@ export default function Fundraisers() {
                 <span className="text-2xl">${activeFundraiser.raised.toLocaleString()}</span>
                 <span className="text-[#555555]">of ${activeFundraiser.goal.toLocaleString()} goal</span>
               </div>
-              <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+              <div className="w-full h-4 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-[#DE2910] to-[#FF6B6B] transition-all duration-500"
                   style={{ width: `${percentage}%` }}
@@ -88,7 +88,7 @@ export default function Fundraisers() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {pastFundraisers.map((fundraiser) => (
-              <div key={fundraiser.id} className="bg-white rounded-2xl p-6 shadow-lg">
+              <div key={fundraiser.id} className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-lg">
                 <h3 className="text-xl mb-2">{fundraiser.name}</h3>
                 <p className="text-[#DE2910] text-2xl mb-2">${fundraiser.raised.toLocaleString()}</p>
                 <p className="text-sm text-[#555555] mb-4">{fundraiser.year}</p>
@@ -102,7 +102,7 @@ export default function Fundraisers() {
         </div>
       </section>
 
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white dark:bg-[#1a1b1e]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl mb-12 text-center">Why We Fundraise</h2>
 

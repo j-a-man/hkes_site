@@ -62,7 +62,7 @@ export default function PortalMembers() {
           <p className="text-[#555555]">View and connect with all HKES members</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+        <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#555555]" />
@@ -89,7 +89,7 @@ export default function PortalMembers() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredMembers.map((member) => (
-            <div key={member.id} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow">
+            <div key={member.id} className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow">
               <div className="flex flex-col items-center text-center">
                 <div className={`w-20 h-20 ${getAvatarColor(member.role)} rounded-full flex items-center justify-center text-white text-2xl mb-4`}>
                   {member.avatar}
@@ -118,7 +118,7 @@ export default function PortalMembers() {
         </div>
 
         {filteredMembers.length === 0 && (
-          <div className="bg-white rounded-2xl p-12 shadow-sm text-center">
+          <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-12 shadow-sm text-center">
             <p className="text-[#555555]">No members found matching your search.</p>
           </div>
         )}

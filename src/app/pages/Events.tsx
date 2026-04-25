@@ -89,7 +89,7 @@ export default function Events() {
         </div>
       </section>
 
-      <section className="py-12 bg-white">
+      <section className="py-12 bg-white dark:bg-[#1a1b1e]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap gap-3 justify-center mb-12">
             {filters.map((filter) => (
@@ -99,7 +99,7 @@ export default function Events() {
                 className={`px-6 py-2 rounded-full transition-colors ${
                   activeFilter === filter
                     ? 'bg-[#DE2910] text-white'
-                    : 'bg-gray-100 text-[#1A1A1A] hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-white/5 text-[#1A1A1A] hover:bg-gray-200 dark:bg-white/10'
                 }`}
               >
                 {filter}
@@ -109,7 +109,7 @@ export default function Events() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {filteredEvents.map((event) => (
-              <div key={event.id} className={`bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow ${
+              <div key={event.id} className={`bg-white dark:bg-[#1a1b1e] rounded-3xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow ${
                 event.status === 'past' ? 'opacity-75' : ''
               }`}>
                 <div className="relative">

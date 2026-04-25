@@ -10,7 +10,7 @@ export default function Contact() {
         </div>
       </section>
 
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white dark:bg-[#1a1b1e]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             <div>
@@ -111,7 +111,7 @@ export default function Contact() {
                 <p className="text-white/90 mb-6">
                   Applications open each semester for new members and E-Board positions. Stay tuned for announcements!
                 </p>
-                <button className="bg-white text-[#DE2910] px-6 py-3 rounded-lg hover:bg-gray-100 transition-colors">
+                <button className="bg-white dark:bg-[#1a1b1e] text-[#DE2910] px-6 py-3 rounded-lg hover:bg-gray-100 dark:bg-white/5 transition-colors">
                   Learn More
                 </button>
               </div>

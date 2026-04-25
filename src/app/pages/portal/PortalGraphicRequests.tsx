@@ -20,7 +20,7 @@ export default function PortalGraphicRequests() {
       case 'Complete':
         return 'bg-green-100 text-green-700';
       default:
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-200';
     }
   };
 
@@ -35,7 +35,7 @@ export default function PortalGraphicRequests() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             {showForm && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+              <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm mb-6">
                 <h2 className="text-2xl mb-6">Request a Graphic</h2>
 
                 <form className="space-y-4">
@@ -148,7 +148,7 @@ export default function PortalGraphicRequests() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden mt-6">
+        <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-sm overflow-hidden mt-6">
           <div className="p-6 border-b border-border">
             <h2 className="text-2xl">Current Queue</h2>
           </div>
@@ -181,7 +181,7 @@ export default function PortalGraphicRequests() {
                     {request.priority === 'Urgent' ? (
                       <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs">Urgent</span>
                     ) : (
-                      <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs">Normal</span>
+                      <span className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-200 px-3 py-1 rounded-full text-xs">Normal</span>
                     )}
                   </td>
                 </tr>

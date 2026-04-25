@@ -37,7 +37,7 @@ export default function PortalDashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <Calendar className="text-[#DE2910]" size={24} />
               <TrendingUp className="text-green-500" size={20} />
@@ -46,7 +46,7 @@ export default function PortalDashboard() {
             <p className="text-[#555555] text-sm">Upcoming Events</p>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <CheckCircle className="text-[#DE2910]" size={24} />
             </div>
@@ -54,7 +54,7 @@ export default function PortalDashboard() {
             <p className="text-[#555555] text-sm">Pending Tasks</p>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <AlertCircle className="text-[#DE2910]" size={24} />
             </div>
@@ -62,7 +62,7 @@ export default function PortalDashboard() {
             <p className="text-[#555555] text-sm">Active Requests</p>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <Clock className="text-[#DE2910]" size={24} />
             </div>
@@ -72,7 +72,7 @@ export default function PortalDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm">
             <h2 className="text-2xl mb-4">Upcoming Deadlines</h2>
             <div className="space-y-3">
               {upcomingDeadlines.map((deadline) => (
@@ -92,7 +92,7 @@ export default function PortalDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm">
             <h2 className="text-2xl mb-4">Pending Requests</h2>
             <div className="space-y-4">
               {pendingRequests.map((request, idx) => (
@@ -107,7 +107,7 @@ export default function PortalDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm mb-8">
+        <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm mb-8">
           <h2 className="text-2xl mb-4">Announcements</h2>
           <div className="space-y-4">
             {announcements.map((announcement) => (
@@ -125,16 +125,16 @@ export default function PortalDashboard() {
         <div className="bg-gradient-to-r from-[#DE2910] to-[#FF6B6B] rounded-2xl p-6 text-white">
           <h2 className="text-2xl text-white mb-3">Quick Actions</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <button className="bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors px-4 py-3 rounded-lg text-sm">
+            <button className="bg-white dark:bg-[#1a1b1e]/20 backdrop-blur-sm hover:bg-white dark:bg-[#1a1b1e]/30 transition-colors px-4 py-3 rounded-lg text-sm">
               Request Graphic
             </button>
-            <button className="bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors px-4 py-3 rounded-lg text-sm">
+            <button className="bg-white dark:bg-[#1a1b1e]/20 backdrop-blur-sm hover:bg-white dark:bg-[#1a1b1e]/30 transition-colors px-4 py-3 rounded-lg text-sm">
               Submit Post
             </button>
-            <button className="bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors px-4 py-3 rounded-lg text-sm">
+            <button className="bg-white dark:bg-[#1a1b1e]/20 backdrop-blur-sm hover:bg-white dark:bg-[#1a1b1e]/30 transition-colors px-4 py-3 rounded-lg text-sm">
               File Reimbursement
             </button>
-            <button className="bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors px-4 py-3 rounded-lg text-sm">
+            <button className="bg-white dark:bg-[#1a1b1e]/20 backdrop-blur-sm hover:bg-white dark:bg-[#1a1b1e]/30 transition-colors px-4 py-3 rounded-lg text-sm">
               View Calendar
             </button>
           </div>

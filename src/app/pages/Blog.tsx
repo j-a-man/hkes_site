@@ -82,12 +82,12 @@ export default function Blog() {
       case 'Announcement':
         return 'bg-[#FF6B6B] text-white';
       default:
-        return 'bg-gray-200 text-[#1A1A1A]';
+        return 'bg-gray-200 dark:bg-white/10 text-[#1A1A1A]';
     }
   };
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-white dark:bg-[#1a1b1e] min-h-screen">
       <section className="bg-gradient-to-r from-[#DE2910] to-[#FF6B6B] py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-5xl text-white mb-4">HKES Blog</h1>
@@ -98,7 +98,7 @@ export default function Blog() {
       <section className="py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-12">
-            <div className="bg-white rounded-3xl overflow-hidden shadow-xl">
+            <div className="bg-white dark:bg-[#1a1b1e] rounded-3xl overflow-hidden shadow-xl">
               <div className="relative">
                 <img src={featuredPost.image} alt={featuredPost.title} className="w-full h-96 object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -125,7 +125,7 @@ export default function Blog() {
               <h2 className="text-3xl mb-8">All Posts</h2>
               <div className="space-y-6">
                 {posts.map((post) => (
-                  <div key={post.id} className="bg-white border border-border rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
+                  <div key={post.id} className="bg-white dark:bg-[#1a1b1e] border border-border rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
                     <div className="grid grid-cols-1 md:grid-cols-3">
                       <img src={post.image} alt={post.title} className="w-full h-48 md:h-full object-cover" />
                       <div className="md:col-span-2 p-6">
@@ -157,7 +157,7 @@ export default function Blog() {
                     <input
                       type="text"
                       placeholder="Search articles..."
-                      className="w-full pl-10 pr-4 py-2 bg-white border border-border rounded-lg"
+                      className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#1a1b1e] border border-border rounded-lg"
                     />
                   </div>
                 </div>
@@ -165,16 +165,16 @@ export default function Blog() {
                 <div className="bg-[#FFF8F6] rounded-2xl p-6">
                   <h3 className="mb-4">Categories</h3>
                   <div className="space-y-2">
-                    <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white transition-colors">
+                    <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white dark:bg-[#1a1b1e] transition-colors">
                       All Posts
                     </button>
-                    <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white transition-colors">
+                    <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white dark:bg-[#1a1b1e] transition-colors">
                       Recaps
                     </button>
-                    <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white transition-colors">
+                    <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white dark:bg-[#1a1b1e] transition-colors">
                       Culture
                     </button>
-                    <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white transition-colors">
+                    <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-white dark:bg-[#1a1b1e] transition-colors">
                       Announcements
                     </button>
                   </div>
@@ -200,7 +200,7 @@ export default function Blog() {
                     placeholder="Your email"
                     className="w-full px-4 py-2 rounded-lg mb-3 text-[#1A1A1A]"
                   />
-                  <button className="w-full bg-white text-[#DE2910] px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors">
+                  <button className="w-full bg-white dark:bg-[#1a1b1e] text-[#DE2910] px-4 py-2 rounded-lg hover:bg-gray-100 dark:bg-white/5 transition-colors">
                     Subscribe
                   </button>
                 </div>

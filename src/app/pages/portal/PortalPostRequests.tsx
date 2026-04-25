@@ -16,7 +16,7 @@ export default function PortalPostRequests() {
       case 'Published':
         return 'bg-green-100 text-green-700';
       default:
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-200';
     }
   };
 
@@ -30,7 +30,7 @@ export default function PortalPostRequests() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+            <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm mb-6">
               <h2 className="text-2xl mb-6">Request a Post / Outreach</h2>
 
               <form className="space-y-4">
@@ -131,7 +131,7 @@ export default function PortalPostRequests() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm">
               <h3 className="mb-4">Outreach Tips</h3>
               <ul className="space-y-2 text-sm text-[#555555]">
                 <li className="flex items-start gap-2">
@@ -155,7 +155,7 @@ export default function PortalPostRequests() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden mt-6">
+        <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-sm overflow-hidden mt-6">
           <div className="p-6 border-b border-border">
             <h2 className="text-2xl">Current Post Queue</h2>
           </div>

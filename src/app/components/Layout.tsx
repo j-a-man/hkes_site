@@ -4,11 +4,11 @@ import { Menu, X, ChevronDown, Moon, Sun } from 'lucide-react';
 
 export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileEventsOpen, setMobileEventsOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
-    // Check initial dark mode preference
     if (document.documentElement.classList.contains('dark')) {
       setIsDarkMode(true);
     }
@@ -41,17 +41,18 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col font-['Poppins'] bg-background text-foreground transition-colors duration-300">
-      <nav className="fixed top-0 left-0 right-0 bg-white/80 dark:bg-[#1a1b1e]/80 backdrop-blur-md z-50 transition-colors duration-300">
+      <nav className="fixed top-0 left-0 right-0 bg-white/80 dark:bg-[#1a1b1e]/80 backdrop-blur-md z-[60] transition-colors duration-300 border-b border-transparent shadow-sm">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
           <div className="flex justify-between items-center h-24">
             
             {/* Left Side: Mobile Hamburger & Desktop Logo */}
             <div className="flex items-center gap-4">
               <button
-                className="lg:hidden text-[#fa4e5b] hover:text-[#ff7a65] transition-colors focus:outline-none"
+                className="lg:hidden text-[#fa4e5b] hover:text-[#ff7a65] transition-colors focus:outline-none p-2 -ml-2"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Toggle menu"
               >
-                {mobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+                {mobileMenuOpen ? <X size={32} /> : <Menu size={32} />}
               </button>
               
               <Link to="/" className="hidden lg:flex items-center">
@@ -74,7 +75,7 @@ export default function Layout() {
                 Home
               </Link>
 
-              {/* Events Dropdown */}
+              {/* Events Dropdown Desktop */}
               <div className="relative group py-6">
                 <Link
                   to="/events"
@@ -146,69 +147,93 @@ export default function Layout() {
             
           </div>
         </div>
+      </nav>
 
-        {/* Mobile Dropdown */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden fixed inset-0 top-24 bg-white/95 dark:bg-[#1a1b1e]/95 backdrop-blur-lg z-40 overflow-y-auto pb-10">
-            <div className="flex flex-col items-center justify-start pt-10 min-h-[50vh] space-y-6">
-              <Link
-                to="/"
-                className={`text-2xl uppercase font-bold tracking-wider transition-colors ${
-                  location.pathname === '/' ? 'text-[#fa4e5b]' : 'text-gray-900 dark:text-white'
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Home
-              </Link>
-              
-              <div className="flex flex-col items-center space-y-4 pt-2">
-                <span className="text-sm font-bold text-gray-400 tracking-widest uppercase">Events</span>
+      {/* Mobile Dropdown Wrapper - Extracted outside nav to avoid stacking context traps */}
+      <div 
+        className={`lg:hidden fixed inset-0 z-[50] bg-white dark:bg-[#1a1b1e] overflow-y-auto transition-transform duration-300 ease-in-out ${
+          mobileMenuOpen ? 'translate-y-0' : '-translate-y-full'
+        }`}
+        style={{ paddingTop: '6rem' }} 
+      >
+        <div className="flex flex-col px-8 pb-12 space-y-6">
+          <Link
+            to="/"
+            className={`text-2xl uppercase font-bold tracking-wider transition-colors ${
+              location.pathname === '/' ? 'text-[#fa4e5b]' : 'text-gray-900 dark:text-white'
+            }`}
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            Home
+          </Link>
+          
+          {/* Mobile Events Dropdown */}
+          <div className="w-full">
+            <button 
+              onClick={() => setMobileEventsOpen(!mobileEventsOpen)}
+              className="w-full flex justify-between items-center text-2xl uppercase font-bold tracking-wider transition-colors text-gray-900 dark:text-white hover:text-[#fa4e5b] dark:hover:text-[#fa4e5b]"
+            >
+              <span>Events</span>
+              <ChevronDown 
+                size={24} 
+                className={`transition-transform duration-300 ${mobileEventsOpen ? 'rotate-180 text-[#fa4e5b]' : ''}`} 
+              />
+            </button>
+            <div 
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                mobileEventsOpen ? 'max-h-96 opacity-100 mt-4' : 'max-h-0 opacity-0'
+              }`}
+            >
+              <div className="flex flex-col space-y-4 pl-4 border-l-2 border-gray-100 dark:border-gray-800">
                 {eventLinks.map((link) => (
                   <Link
                     key={link.path}
                     to={link.path}
                     className={`text-lg uppercase font-bold tracking-wider transition-colors ${
-                      location.pathname === link.path ? 'text-[#fa4e5b]' : 'text-gray-600 dark:text-gray-300'
+                      location.pathname === link.path ? 'text-[#fa4e5b]' : 'text-gray-500 dark:text-gray-400'
                     }`}
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      setMobileEventsOpen(false);
+                    }}
                   >
                     {link.name}
                   </Link>
                 ))}
               </div>
-
-              <div className="w-12 h-px bg-gray-200 dark:bg-gray-800 my-4"></div>
-
-              {navLinks.slice(1).map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`text-2xl uppercase font-bold tracking-wider transition-colors ${
-                    location.pathname === link.path ? 'text-[#fa4e5b]' : 'text-gray-900 dark:text-white'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {link.name}
-                </Link>
-              ))}
-              
-              <Link
-                to="/portal"
-                className="mt-8 bg-gradient-to-r from-[#ffbba1] to-[#fa4e5b] text-white px-8 py-3 rounded-full font-bold tracking-wider shadow-md"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                MEMBER PORTAL
-              </Link>
             </div>
           </div>
-        )}
-      </nav>
 
-      <main className="flex-1 mt-24">
+          {navLinks.slice(1).map((link) => (
+            <Link
+              key={link.path}
+              to={link.path}
+              className={`text-2xl uppercase font-bold tracking-wider transition-colors ${
+                location.pathname === link.path ? 'text-[#fa4e5b]' : 'text-gray-900 dark:text-white'
+              }`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              {link.name}
+            </Link>
+          ))}
+          
+          <div className="pt-8 flex">
+            <Link
+              to="/portal"
+              className="bg-gradient-to-r from-[#ffbba1] to-[#fa4e5b] text-white px-8 py-4 rounded-full font-bold tracking-wider shadow-md w-full text-center hover:shadow-lg transition-shadow"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              MEMBER PORTAL
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <main className="flex-1 mt-24 relative z-10">
         <Outlet />
       </main>
 
-      <footer className="bg-white dark:bg-[#1a1b1e] text-gray-800 dark:text-gray-300 border-t border-gray-100 dark:border-gray-800 transition-colors duration-300">
+      <footer className="bg-white dark:bg-[#1a1b1e] text-gray-800 dark:text-gray-300 border-t border-gray-100 dark:border-gray-800 transition-colors duration-300 relative z-10">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-16">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div>
