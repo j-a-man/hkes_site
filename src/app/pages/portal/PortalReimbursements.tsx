@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { useLoaderData, useRevalidator } from 'react-router';
-import PortalLayout from '../../components/PortalLayout';
 import PageHeader from '../../components/portal/PageHeader';
 import Reveal from '../../components/Reveal';
 import { DollarSign, Upload } from 'lucide-react';
@@ -102,7 +101,6 @@ export default function PortalReimbursements() {
   const totalPending = visible.filter((r) => r.status === 'Pending').reduce((sum, r) => sum + Number(r.amount), 0);
 
   return (
-    <PortalLayout>
       <div>
         <PageHeader title="Reimbursements" subtitle="Submit a reimbursement request and track its status" />
 
@@ -234,6 +232,5 @@ export default function PortalReimbursements() {
           </div>
         </Reveal>
       </div>
-    </PortalLayout>
   );
 }

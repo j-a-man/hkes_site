@@ -261,6 +261,12 @@ export async function getQrCampaignBySlug(slug: string): Promise<QrCampaignRow |
   return res.data as QrCampaignRow | null;
 }
 
+export async function getQrCampaignById(id: string): Promise<QrCampaignRow | null> {
+  const res = await supabase.from('qr_campaigns').select('*').eq('id', id).maybeSingle();
+  if (res.error) throw res.error;
+  return res.data as QrCampaignRow | null;
+}
+
 export async function getQrCampaignEntries(campaignId: string): Promise<QrCampaignEntryRow[]> {
   const res = await supabase
     .from('qr_campaign_entries')
@@ -268,4 +274,14 @@ export async function getQrCampaignEntries(campaignId: string): Promise<QrCampai
     .eq('campaign_id', campaignId)
     .order('created_at', { ascending: false });
   return orThrow(res) as QrCampaignEntryRow[];
+}
+
+export async function getQrEntryStats(): Promise<{ total: number; unverified: number }> {
+  const [totalRes, unverifiedRes] = await Promise.all([
+    supabase.from('qr_campaign_entries').select('*', { count: 'exact', head: true }),
+    supabase.from('qr_campaign_entries').select('*', { count: 'exact', head: true }).eq('verified', false),
+  ]);
+  if (totalRes.error) throw totalRes.error;
+  if (unverifiedRes.error) throw unverifiedRes.error;
+  return { total: totalRes.count ?? 0, unverified: unverifiedRes.count ?? 0 };
 }

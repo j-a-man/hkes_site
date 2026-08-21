@@ -1,4 +1,3 @@
-import PortalLayout from '../../components/PortalLayout';
 import PageHeader from '../../components/portal/PageHeader';
 import Reveal from '../../components/Reveal';
 import Modal from '../../components/portal/Modal';
@@ -93,7 +92,7 @@ export default function PortalDeadlines() {
   };
 
   return (
-    <PortalLayout>
+    <>
       <div>
         <PageHeader
           title="Deadlines Tracker"
@@ -250,6 +249,6 @@ export default function PortalDeadlines() {
           </button>
         </form>
       </Modal>
-    </PortalLayout>
+    </>
   );
 }

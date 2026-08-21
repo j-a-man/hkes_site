@@ -1,19 +1,24 @@
-import { Link, useLocation, useNavigate } from 'react-router';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { LayoutDashboard, CheckSquare, Image, Send, DollarSign, Users, Megaphone, PenSquare, QrCode, LogOut, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import Logo from './Logo';
 import { useAuth } from '../lib/auth';
 
-interface PortalLayoutProps {
-  children: React.ReactNode;
-}
+// Module-level so the scroll position survives even if this component remounts
+// (e.g. a fresh page load) rather than resetting to the top of the nav list.
+let savedSidebarScrollTop = 0;
 
-export default function PortalLayout({ children }: PortalLayoutProps) {
+export default function PortalLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (navRef.current) navRef.current.scrollTop = savedSidebarScrollTop;
+  }, []);
 
   const userName = profile?.full_name ?? '';
   const userRole = profile?.title ?? (profile?.role === 'executive' ? 'Executive' : 'Member');
@@ -79,7 +84,11 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
         </div>
       </div>
 
-      <nav className="portal-sidebar-nav flex-1 overflow-y-auto px-6 py-4 space-y-2">
+      <nav
+        ref={navRef}
+        onScroll={(e) => { savedSidebarScrollTop = e.currentTarget.scrollTop; }}
+        className="portal-sidebar-nav flex-1 overflow-y-auto px-6 py-4 space-y-2"
+      >
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname.includes(item.path);
@@ -165,7 +174,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
       {/* Main Content Area */}
       <main className="flex-1 min-w-0 min-h-screen lg:ml-72 pt-16 lg:pt-0 bg-[#FFF8F6] dark:bg-[#101112]">
         <div className="max-w-6xl mx-auto p-4 sm:p-8 lg:p-12 w-full h-full min-h-screen flex flex-col">
-          {children}
+          <Outlet />
         </div>
       </main>
     </div>

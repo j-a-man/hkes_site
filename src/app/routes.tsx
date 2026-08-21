@@ -1,5 +1,6 @@
 import { createBrowserRouter, redirect } from "react-router";
 import Layout from "./components/Layout";
+import PortalLayout from "./components/PortalLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import RequirePortalAuth from "./components/portal/RequirePortalAuth";
 import Home from "./pages/Home";
@@ -21,6 +22,7 @@ import PortalMembers from "./pages/portal/PortalMembers";
 import PortalAnnouncements from "./pages/portal/PortalAnnouncements";
 import PortalSiteEditor from "./pages/portal/PortalSiteEditor";
 import PortalQrCampaigns from "./pages/portal/PortalQrCampaigns";
+import PortalQrCampaignDetail from "./pages/portal/PortalQrCampaignDetail";
 import { supabase } from "./lib/supabase";
 import { requireSession } from "./lib/auth";
 import {
@@ -39,6 +41,9 @@ import {
   getAllSiteContent,
   getQrCampaigns,
   getQrCampaignBySlug,
+  getQrCampaignById,
+  getQrCampaignEntries,
+  getQrEntryStats,
 } from "./lib/queries";
 
 export const router = createBrowserRouter([
@@ -127,67 +132,84 @@ export const router = createBrowserRouter([
         Component: RequirePortalAuth,
         children: [
           {
-            path: "dashboard",
-            Component: PortalDashboard,
-            loader: async () => {
-              const [deadlines, graphics, posts, reimbursements, announcements] = await Promise.all([
-                getDeadlines(),
-                getGraphicRequests(),
-                getPostRequests(),
-                getReimbursements(),
-                getAnnouncements(),
-              ]);
-              return { deadlines, graphics, posts, reimbursements, announcements: announcements.slice(0, 3) };
-            },
-          },
-          {
-            path: "deadlines",
-            Component: PortalDeadlines,
-            loader: async () => ({ deadlines: await getDeadlines() }),
-          },
-          {
-            path: "graphics",
-            Component: PortalGraphicRequests,
-            loader: async () => ({ requests: await getGraphicRequests() }),
-          },
-          {
-            path: "posts",
-            Component: PortalPostRequests,
-            loader: async () => ({ requests: await getPostRequests() }),
-          },
-          {
-            path: "reimbursements",
-            Component: PortalReimbursements,
-            loader: async () => ({ reimbursements: await getReimbursements() }),
-          },
-          {
-            path: "members",
-            Component: PortalMembers,
-            loader: async () => ({ members: await getProfiles() }),
-          },
-          {
-            path: "announcements",
-            Component: PortalAnnouncements,
-            loader: async () => ({ announcements: await getAnnouncements() }),
-          },
-          {
-            path: "qr-campaigns",
-            Component: PortalQrCampaigns,
-            loader: async () => ({ campaigns: await getQrCampaigns() }),
-          },
-          {
-            path: "site-editor",
-            Component: PortalSiteEditor,
-            loader: async () => {
-              const [content, events, photos, fundraisers, recaps] = await Promise.all([
-                getAllSiteContent(),
-                getEvents(),
-                getGalleryPhotos(),
-                getFundraisers(),
-                getFeaturedRecaps(),
-              ]);
-              return { content, collections: { events, gallery_photos: photos, fundraisers, featured_recaps: recaps } };
-            },
+            Component: PortalLayout,
+            children: [
+              {
+                path: "dashboard",
+                Component: PortalDashboard,
+                loader: async () => {
+                  const [deadlines, graphics, posts, reimbursements, announcements] = await Promise.all([
+                    getDeadlines(),
+                    getGraphicRequests(),
+                    getPostRequests(),
+                    getReimbursements(),
+                    getAnnouncements(),
+                  ]);
+                  return { deadlines, graphics, posts, reimbursements, announcements: announcements.slice(0, 3) };
+                },
+              },
+              {
+                path: "deadlines",
+                Component: PortalDeadlines,
+                loader: async () => ({ deadlines: await getDeadlines() }),
+              },
+              {
+                path: "graphics",
+                Component: PortalGraphicRequests,
+                loader: async () => ({ requests: await getGraphicRequests() }),
+              },
+              {
+                path: "posts",
+                Component: PortalPostRequests,
+                loader: async () => ({ requests: await getPostRequests() }),
+              },
+              {
+                path: "reimbursements",
+                Component: PortalReimbursements,
+                loader: async () => ({ reimbursements: await getReimbursements() }),
+              },
+              {
+                path: "members",
+                Component: PortalMembers,
+                loader: async () => ({ members: await getProfiles() }),
+              },
+              {
+                path: "announcements",
+                Component: PortalAnnouncements,
+                loader: async () => ({ announcements: await getAnnouncements() }),
+              },
+              {
+                path: "qr-campaigns",
+                Component: PortalQrCampaigns,
+                loader: async () => {
+                  const [campaigns, stats] = await Promise.all([getQrCampaigns(), getQrEntryStats()]);
+                  return { campaigns, stats };
+                },
+              },
+              {
+                path: "qr-campaigns/:id",
+                Component: PortalQrCampaignDetail,
+                loader: async ({ params }) => {
+                  const campaign = await getQrCampaignById(params.id!);
+                  const entries = campaign ? await getQrCampaignEntries(campaign.id) : [];
+                  return { campaign, entries };
+                },
+              },
+              {
+                path: "site-editor",
+                Component: PortalSiteEditor,
+                loader: async () => {
+                  const [content, events, photos, fundraisers, recaps] = await Promise.all([
+                    getAllSiteContent(),
+                    getEvents(),
+                    getGalleryPhotos(),
+                    getFundraisers(),
+                    getFeaturedRecaps(),
+                  ]);
+                  return { content, collections: { events, gallery_photos: photos, fundraisers, featured_recaps: recaps } };
+                },
+              },
+            ],
           },
         ],
       },

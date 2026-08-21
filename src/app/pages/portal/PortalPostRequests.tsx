@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { useLoaderData, useRevalidator } from 'react-router';
-import PortalLayout from '../../components/PortalLayout';
 import PageHeader from '../../components/portal/PageHeader';
 import Reveal from '../../components/Reveal';
 import { Upload } from 'lucide-react';
@@ -96,7 +95,6 @@ export default function PortalPostRequests() {
   };
 
   return (
-    <PortalLayout>
       <div>
         <PageHeader title="Post Requests" subtitle="Request a social post and track the queue" />
 
@@ -223,6 +221,5 @@ export default function PortalPostRequests() {
           </div>
         </Reveal>
       </div>
-    </PortalLayout>
   );
 }

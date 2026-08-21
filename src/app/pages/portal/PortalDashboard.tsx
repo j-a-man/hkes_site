@@ -1,10 +1,8 @@
 import { useLoaderData, Link } from 'react-router';
-import PortalLayout from '../../components/PortalLayout';
-import PageHeader from '../../components/portal/PageHeader';
 import StatCard from '../../components/portal/StatCard';
 import Reveal from '../../components/Reveal';
 import { motion, useReducedMotion } from 'motion/react';
-import { Calendar, Clock, AlertCircle, CheckCircle, TrendingUp, Image, Send, DollarSign, CalendarDays } from 'lucide-react';
+import { Calendar, Clock, AlertCircle, CheckCircle, TrendingUp, Image, Send, DollarSign, CalendarDays, CheckSquare, Megaphone } from 'lucide-react';
 import { staggerContainer } from '../../lib/motion';
 import { useAuth } from '../../lib/auth';
 import type { DeadlineRow, GraphicRequestRow, PostRequestRow, ReimbursementRow, AnnouncementRow } from '../../lib/queries';
@@ -32,9 +30,9 @@ export default function PortalDashboard() {
   const dueThisWeek = openDeadlines.filter((d) => new Date(d.due_date) <= oneWeekOut).length;
 
   const pendingRequests = [
-    { type: 'Graphic', count: graphics.filter((g) => g.status === 'Pending').length },
-    { type: 'Post', count: posts.filter((p) => p.status === 'Pending').length },
-    { type: 'Reimbursement', count: reimbursements.filter((r) => r.status === 'Pending').length },
+    { type: 'Graphic', icon: Image, count: graphics.filter((g) => g.status === 'Pending').length, path: '/portal/graphics' },
+    { type: 'Post', icon: Send, count: posts.filter((p) => p.status === 'Pending').length, path: '/portal/posts' },
+    { type: 'Reimbursement', icon: DollarSign, count: reimbursements.filter((r) => r.status === 'Pending').length, path: '/portal/reimbursements' },
   ];
   const activeRequests = pendingRequests.reduce((sum, r) => sum + r.count, 0);
 
@@ -54,10 +52,24 @@ export default function PortalDashboard() {
     }
   };
 
+  const firstName = profile?.full_name?.split(' ')[0] ?? '';
+  const initials = profile?.full_name ? profile.full_name.split(' ').map((n) => n[0]).join('') : '';
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
   return (
-    <PortalLayout>
       <div>
-        <PageHeader title={`Welcome back, ${profile?.full_name?.split(' ')[0] ?? ''} 👋`} subtitle="Here's what's happening with HKES" />
+        <Reveal className="bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] rounded-2xl p-6 sm:p-8 text-white mb-8 flex items-center justify-between gap-4 overflow-hidden relative">
+          <div className="relative z-10">
+            <p className="text-white/80 text-sm mb-1">{today}</p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1">Welcome back, {firstName} 👋</h1>
+            <p className="text-white/85">Here's what's happening with HKES</p>
+          </div>
+          <div className="w-16 h-16 rounded-full bg-white/15 border border-white/20 backdrop-blur-sm flex items-center justify-center text-xl font-bold shrink-0 relative z-10">
+            {initials}
+          </div>
+          <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-white/10" />
+          <div className="absolute right-16 -bottom-16 w-40 h-40 rounded-full bg-white/10" />
+        </Reveal>
 
         <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
@@ -76,7 +88,12 @@ export default function PortalDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <Reveal className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-white/10">
-            <h2 className="text-2xl mb-4">Upcoming Deadlines</h2>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ffbba1] to-[#fa4e5b] flex items-center justify-center shrink-0">
+                <CheckSquare size={18} className="text-white" />
+              </div>
+              <h2 className="text-2xl">Upcoming Deadlines</h2>
+            </div>
             <div className="space-y-3">
               {upcomingDeadlines.length === 0 && <p className="text-sm text-[#555555] dark:text-gray-400">Nothing due — you're all caught up.</p>}
               {upcomingDeadlines.map((deadline) => (
@@ -97,22 +114,41 @@ export default function PortalDashboard() {
           </Reveal>
 
           <Reveal className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-white/10">
-            <h2 className="text-2xl mb-4">Pending Requests</h2>
-            <div className="space-y-4">
-              {pendingRequests.map((request, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-[#FFF8F6] dark:bg-white/5 rounded-lg">
-                  <span>{request.type} Requests</span>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff7a65] to-[#ff9a5c] flex items-center justify-center shrink-0">
+                <AlertCircle size={18} className="text-white" />
+              </div>
+              <h2 className="text-2xl">Pending Requests</h2>
+            </div>
+            <div className="space-y-3">
+              {pendingRequests.map((request) => (
+                <Link
+                  key={request.type}
+                  to={request.path}
+                  className="flex items-center justify-between p-3 bg-[#FFF8F6] dark:bg-white/5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-full bg-white dark:bg-white/10 flex items-center justify-center shadow-sm">
+                      <request.icon size={14} className="text-[#fa4e5b]" />
+                    </span>
+                    {request.type} Requests
+                  </span>
                   <span className="bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white px-3 py-1 rounded-full text-sm">
                     {request.count}
                   </span>
-                </div>
+                </Link>
               ))}
             </div>
           </Reveal>
         </div>
 
         <Reveal className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-white/10 mb-8">
-          <h2 className="text-2xl mb-4">Announcements</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ffc47d] to-[#ff9a5c] flex items-center justify-center shrink-0">
+              <Megaphone size={18} className="text-white" />
+            </div>
+            <h2 className="text-2xl">Announcements</h2>
+          </div>
           <div className="space-y-4">
             {announcements.length === 0 && <p className="text-sm text-[#555555] dark:text-gray-400">No announcements yet.</p>}
             {announcements.map((announcement) => (
@@ -145,6 +181,5 @@ export default function PortalDashboard() {
           </div>
         </Reveal>
       </div>
-    </PortalLayout>
   );
 }

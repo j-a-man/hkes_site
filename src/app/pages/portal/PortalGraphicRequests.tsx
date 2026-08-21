@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { useLoaderData, useRevalidator } from 'react-router';
-import PortalLayout from '../../components/PortalLayout';
 import PageHeader from '../../components/portal/PageHeader';
 import Reveal from '../../components/Reveal';
 import { Upload } from 'lucide-react';
@@ -96,7 +95,6 @@ export default function PortalGraphicRequests() {
   };
 
   return (
-    <PortalLayout>
       <div>
         <PageHeader title="Graphic Requests" subtitle="Request new graphics and track the queue" />
 
@@ -218,6 +216,5 @@ export default function PortalGraphicRequests() {
           </div>
         </Reveal>
       </div>
-    </PortalLayout>
   );
 }

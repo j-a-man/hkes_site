@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useLoaderData, useRevalidator } from 'react-router';
-import PortalLayout from '../../components/PortalLayout';
 import PageHeader from '../../components/portal/PageHeader';
 import Reveal from '../../components/Reveal';
 import Modal from '../../components/portal/Modal';
@@ -247,7 +246,6 @@ export default function PortalSiteEditor() {
   const pageCollections = SITE_COLLECTIONS.filter((c) => c.pageKey === activePage);
 
   return (
-    <PortalLayout>
       <div>
         <PageHeader title="Site Editor" subtitle="Edit the text, images, and content shown on the public site" />
 
@@ -295,6 +293,5 @@ export default function PortalSiteEditor() {
           </div>
         </Reveal>
       </div>
-    </PortalLayout>
   );
 }

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useLoaderData, useRevalidator } from 'react-router';
-import PortalLayout from '../../components/PortalLayout';
 import PageHeader from '../../components/portal/PageHeader';
 import Reveal from '../../components/Reveal';
 import Modal from '../../components/portal/Modal';
@@ -63,7 +62,7 @@ export default function PortalAnnouncements() {
   };
 
   return (
-    <PortalLayout>
+    <>
       <div>
         <PageHeader
           title="Announcements"
@@ -126,6 +125,6 @@ export default function PortalAnnouncements() {
           </button>
         </form>
       </Modal>
-    </PortalLayout>
+    </>
   );
 }

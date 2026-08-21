@@ -1,4 +1,3 @@
-import PortalLayout from '../../components/PortalLayout';
 import PageHeader from '../../components/portal/PageHeader';
 import Reveal from '../../components/Reveal';
 import Modal from '../../components/portal/Modal';
@@ -136,7 +135,7 @@ export default function PortalMembers() {
   };
 
   return (
-    <PortalLayout>
+    <>
       <div>
         <PageHeader
           title="Members Directory"
@@ -309,6 +308,6 @@ export default function PortalMembers() {
           )}
         </form>
       </Modal>
-    </PortalLayout>
+    </>
   );
 }
