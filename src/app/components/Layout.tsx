@@ -1,8 +1,24 @@
-import { Outlet, Link, useLocation } from 'react-router';
+import { Outlet, Link, useLocation, useLoaderData } from 'react-router';
 import { useState, useEffect } from 'react';
-import { Menu, X, ChevronDown, Moon, Sun } from 'lucide-react';
+import { Menu, X, ChevronDown, Moon, Sun, Mail, MapPin, Instagram, Linkedin } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import Logo from './Logo';
+import TikTokIcon from './icons/TikTokIcon';
+
+interface LoaderData {
+  globalContent: Record<string, Record<string, any>>;
+}
 
 export default function Layout() {
+  const { globalContent } = useLoaderData() as LoaderData;
+  const social = globalContent.social ?? {};
+  const footer = globalContent.footer ?? {};
+  const socialLinks = [
+    { name: 'Instagram', href: social.instagram_url || '#', icon: Instagram },
+    { name: 'TikTok', href: social.tiktok_url || '#', icon: TikTokIcon },
+    { name: 'LinkedIn', href: social.linkedin_url || '#', icon: Linkedin },
+  ];
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileEventsOpen, setMobileEventsOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -27,7 +43,7 @@ export default function Layout() {
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Gallery', path: '/gallery' },
-    { name: 'Blog', path: '/blog' },
+    { name: 'About', path: '/about' },
     { name: 'Contact', path: '/contact' },
   ];
 
@@ -56,11 +72,9 @@ export default function Layout() {
               </button>
               
               <Link to="/" className="hidden lg:flex items-center">
-                <img
-                  src="/merchlogo_designs_(1).png"
-                  alt="HKES Logo"
-                  className="h-12 w-auto drop-shadow-sm hover:scale-105 transition-transform"
-                />
+                <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.2 }}>
+                  <Logo size={48} />
+                </motion.div>
               </Link>
             </div>
 
@@ -137,11 +151,7 @@ export default function Layout() {
                 </Link>
                 
                 <Link to="/" className="flex lg:hidden items-center">
-                  <img
-                    src="/merchlogo_designs_(1).png"
-                    alt="HKES Logo"
-                    className="h-10 w-auto opacity-80"
-                  />
+                  <Logo size={40} />
                 </Link>
             </div>
             
@@ -150,12 +160,16 @@ export default function Layout() {
       </nav>
 
       {/* Mobile Dropdown Wrapper - Extracted outside nav to avoid stacking context traps */}
-      <div 
-        className={`lg:hidden fixed inset-0 z-[50] bg-white dark:bg-[#1a1b1e] overflow-y-auto transition-transform duration-300 ease-in-out ${
-          mobileMenuOpen ? 'translate-y-0' : '-translate-y-full'
-        }`}
-        style={{ paddingTop: '6rem' }} 
-      >
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            className="lg:hidden fixed inset-0 z-[50] bg-white dark:bg-[#1a1b1e] overflow-y-auto"
+            style={{ paddingTop: '6rem' }}
+            initial={{ y: '-100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '-100%' }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+          >
         <div className="flex flex-col px-8 pb-12 space-y-6">
           <Link
             to="/"
@@ -227,32 +241,52 @@ export default function Layout() {
             </Link>
           </div>
         </div>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="flex-1 mt-24 relative z-10">
         <Outlet />
       </main>
 
-      <footer className="bg-white dark:bg-[#1a1b1e] text-gray-800 dark:text-gray-300 border-t border-gray-100 dark:border-gray-800 transition-colors duration-300 relative z-10">
+      <footer className="bg-white dark:bg-[#1a1b1e] text-gray-800 dark:text-gray-300 border-t border-gray-100 dark:border-gray-800 transition-colors duration-300 relative z-10 overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-[#ffbba1] via-[#fa4e5b] to-[#ff7a65]" />
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-16">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
             <div>
-              <h3 className="font-bold text-lg mb-6">About HKES</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
-                A cultural and social student organization celebrating Hong Kong heritage, building community, and connecting students across cultures at Binghamton University.
+              <Link to="/" className="inline-flex items-center gap-3 mb-6">
+                <Logo size={44} />
+                <span className="font-bold tracking-wide text-gray-900 dark:text-white">HKES</span>
+              </Link>
+              <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-6">
+                {footer.blurb}
               </p>
+              <div className="flex gap-3">
+                {socialLinks.map((social) => (
+                  <motion.a
+                    key={social.name}
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={social.name}
+                    whileHover={{ scale: 1.1, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="w-9 h-9 rounded-full bg-gradient-to-br from-[#ffbba1] to-[#fa4e5b] text-white flex items-center justify-center shadow-md"
+                  >
+                    <social.icon size={16} />
+                  </motion.a>
+                ))}
+              </div>
             </div>
 
             <div>
               <h3 className="font-bold text-lg mb-6">Quick Links</h3>
               <div className="flex flex-col space-y-3">
-                <Link to="/" className="text-gray-500 hover:text-[#fa4e5b] text-sm transition-colors uppercase tracking-wider">Home</Link>
-                <Link to="/events" className="text-gray-500 hover:text-[#fa4e5b] text-sm transition-colors uppercase tracking-wider">Events</Link>
-                {navLinks.slice(1).map((link) => (
+                {navLinks.map((link) => (
                   <Link
                     key={link.path}
                     to={link.path}
-                    className="text-gray-500 hover:text-[#fa4e5b] text-sm transition-colors uppercase tracking-wider"
+                    className="text-gray-500 hover:text-[#fa4e5b] text-sm transition-colors uppercase tracking-wider w-fit"
                   >
                     {link.name}
                   </Link>
@@ -261,24 +295,36 @@ export default function Layout() {
             </div>
 
             <div>
-              <h3 className="font-bold text-lg mb-6">Follow Us</h3>
-              <div className="flex space-x-6">
-                <a href="#" className="text-gray-500 hover:text-[#fa4e5b] transition-colors text-sm font-medium">
-                  Instagram
+              <h3 className="font-bold text-lg mb-6">Get Involved</h3>
+              <div className="flex flex-col space-y-3">
+                <Link to="/events" className="text-gray-500 hover:text-[#fa4e5b] text-sm transition-colors uppercase tracking-wider w-fit">Events</Link>
+                <Link to="/fundraisers" className="text-gray-500 hover:text-[#fa4e5b] text-sm transition-colors uppercase tracking-wider w-fit">Fundraisers</Link>
+                <Link to="/portal" className="text-gray-500 hover:text-[#fa4e5b] text-sm transition-colors uppercase tracking-wider w-fit">Member Portal</Link>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-bold text-lg mb-6">Contact</h3>
+              <div className="flex flex-col space-y-4">
+                <a href="mailto:hkes@binghamton.edu" className="flex items-start gap-3 text-gray-500 hover:text-[#fa4e5b] text-sm transition-colors">
+                  <span className="w-8 h-8 rounded-full bg-[#FFF8F6] dark:bg-white/5 flex items-center justify-center flex-shrink-0">
+                    <Mail size={14} className="text-[#fa4e5b]" />
+                  </span>
+                  <span className="pt-1.5">hkes@binghamton.edu</span>
                 </a>
-                <a href="#" className="text-gray-500 hover:text-[#fa4e5b] transition-colors text-sm font-medium">
-                  Facebook
-                </a>
-                <a href="#" className="text-gray-500 hover:text-[#fa4e5b] transition-colors text-sm font-medium">
-                  LinkedIn
-                </a>
+                <div className="flex items-start gap-3 text-gray-500 text-sm">
+                  <span className="w-8 h-8 rounded-full bg-[#FFF8F6] dark:bg-white/5 flex items-center justify-center flex-shrink-0">
+                    <MapPin size={14} className="text-[#fa4e5b]" />
+                  </span>
+                  <span className="pt-1.5">Binghamton University<br />4400 Vestal Pkwy E, Binghamton, NY 13902</span>
+                </div>
               </div>
             </div>
           </div>
 
           <div className="border-t border-gray-100 dark:border-gray-800 mt-12 pt-8 text-center">
             <p className="text-gray-400 text-sm">
-              © 2026 HKES - Binghamton Hong Kong Exchange Square · Made with ❤️ at Binghamton
+              {footer.copyright}
             </p>
           </div>
         </div>

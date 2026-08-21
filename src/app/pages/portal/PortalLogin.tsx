@@ -1,14 +1,41 @@
 import { useNavigate } from 'react-router';
 import { useState } from 'react';
+import Logo from '../../components/Logo';
+import { useAuth } from '../../lib/auth';
+import { supabase } from '../../lib/supabase';
 
 export default function PortalLogin() {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    const { error } = await signIn(email, password);
+    setSubmitting(false);
+    if (error) {
+      setError(error);
+      return;
+    }
     navigate('/portal/dashboard');
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Enter your email above first, then click "Forgot password?"');
+      return;
+    }
+    setError(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/portal/reset-password`,
+    });
+    setResetMessage(error ? error.message : 'Check your email for a password reset link.');
   };
 
   return (
@@ -22,11 +49,7 @@ export default function PortalLogin() {
 
       <div className="bg-white dark:bg-[#1a1b1e] rounded-3xl shadow-2xl p-8 md:p-12 w-full max-w-md relative z-10">
         <div className="text-center mb-8">
-          <img
-            src="/merchlogo_designs_(1).png"
-            alt="HKES Logo"
-            className="h-20 w-20 mx-auto mb-4"
-          />
+          <Logo size={80} className="mx-auto mb-4" />
           <h1 className="text-3xl mb-2">Member Portal</h1>
           <p className="text-[#555555]">Sign in to access your dashboard</p>
         </div>
@@ -56,17 +79,21 @@ export default function PortalLogin() {
             />
           </div>
 
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          {resetMessage && <p className="text-sm text-green-600">{resetMessage}</p>}
+
           <div className="text-right">
-            <a href="#" className="text-[#DE2910] hover:underline text-sm">
+            <button type="button" onClick={handleForgotPassword} className="text-[#DE2910] hover:underline text-sm">
               Forgot password?
-            </a>
+            </button>
           </div>
 
           <button
             type="submit"
-            className="w-full bg-[#DE2910] text-white px-6 py-3 rounded-lg hover:bg-[#C32410] transition-colors"
+            disabled={submitting}
+            className="w-full bg-[#DE2910] text-white px-6 py-3 rounded-lg hover:bg-[#C32410] transition-colors disabled:opacity-60"
           >
-            Login
+            {submitting ? 'Signing in…' : 'Login'}
           </button>
         </form>
 

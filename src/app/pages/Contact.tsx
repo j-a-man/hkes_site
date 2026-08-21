@@ -1,17 +1,28 @@
+import { useLoaderData } from 'react-router';
 import { Mail, Instagram, MapPin } from 'lucide-react';
+import Reveal from '../components/Reveal';
+
+interface LoaderData {
+  content: Record<string, Record<string, any>>;
+}
 
 export default function Contact() {
+  const { content } = useLoaderData() as LoaderData;
+  const hero = content.hero ?? {};
+  const info = content.info ?? {};
+  const cta = content.cta ?? {};
+
   return (
     <div>
       <section className="bg-gradient-to-r from-[#DE2910] to-[#FF6B6B] py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl text-white mb-4">Get in Touch</h1>
-          <p className="text-white/90">We'd love to hear from you</p>
+          <h1 className="text-5xl text-white mb-4">{hero.heading}</h1>
+          <p className="text-white/90">{hero.subheading}</p>
         </div>
       </section>
 
       <section className="py-20 bg-white dark:bg-[#1a1b1e]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <Reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             <div>
               <h2 className="text-3xl mb-6">Send us a message</h2>
@@ -70,7 +81,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="mb-2">Instagram</h3>
-                    <p className="text-[#555555]">@binghamtonhkes</p>
+                    <p className="text-[#555555]">{info.instagram_handle}</p>
                     <a href="#" className="text-[#DE2910] hover:underline text-sm">
                       Follow us →
                     </a>
@@ -85,8 +96,8 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="mb-2">Email</h3>
-                    <p className="text-[#555555]">hkes@binghamton.edu</p>
-                    <a href="mailto:hkes@binghamton.edu" className="text-[#DE2910] hover:underline text-sm">
+                    <p className="text-[#555555]">{info.email}</p>
+                    <a href={`mailto:${info.email}`} className="text-[#DE2910] hover:underline text-sm">
                       Send email →
                     </a>
                   </div>
@@ -100,24 +111,24 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="mb-2">Location</h3>
-                    <p className="text-[#555555]">Binghamton University</p>
-                    <p className="text-[#555555] text-sm">4400 Vestal Pkwy E, Binghamton, NY 13902</p>
+                    <p className="text-[#555555]">{info.location_name}</p>
+                    <p className="text-[#555555] text-sm">{info.location_address}</p>
                   </div>
                 </div>
               </div>
 
               <div className="bg-gradient-to-br from-[#DE2910] to-[#FF6B6B] rounded-2xl p-8 text-white mt-8">
-                <h3 className="text-white text-2xl mb-3">Interested in Joining?</h3>
+                <h3 className="text-white text-2xl mb-3">{cta.heading}</h3>
                 <p className="text-white/90 mb-6">
-                  Applications open each semester for new members and E-Board positions. Stay tuned for announcements!
+                  {cta.body}
                 </p>
                 <button className="bg-white dark:bg-[#1a1b1e] text-[#DE2910] px-6 py-3 rounded-lg hover:bg-gray-100 dark:bg-white/5 transition-colors">
-                  Learn More
+                  {cta.button_text}
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        </Reveal>
       </section>
     </div>
   );

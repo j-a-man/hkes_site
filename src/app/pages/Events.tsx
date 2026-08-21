@@ -1,88 +1,31 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useLoaderData } from 'react-router';
 import { Calendar, MapPin, Clock } from 'lucide-react';
+import Reveal from '../components/Reveal';
+import type { EventRow } from '../lib/queries';
+
+interface LoaderData {
+  content: Record<string, Record<string, any>>;
+  events: EventRow[];
+}
+
+function formatDate(iso: string) {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 export default function Events() {
+  const { content, events } = useLoaderData() as LoaderData;
+  const hero = content.hero ?? {};
   const [activeFilter, setActiveFilter] = useState('All');
-  const filters = ['All', 'Cultural', 'Social', 'Fundraiser', 'Workshop'];
+  const filters = useMemo(() => ['All', ...Array.from(new Set(events.map((e) => e.category)))], [events]);
 
-  const events = [
-    {
-      id: 1,
-      name: 'Lunar New Year Gala',
-      category: 'Cultural',
-      date: 'Feb 10, 2026',
-      time: '6:00 PM',
-      location: 'Student Union Ballroom',
-      description: 'Celebrate the Year of the Horse with traditional performances, authentic Hong Kong cuisine, and lion dance.',
-      image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&h=400&fit=crop',
-      status: 'upcoming'
-    },
-    {
-      id: 2,
-      name: 'Dragon Boat Festival',
-      category: 'Cultural',
-      date: 'May 15, 2026',
-      time: '2:00 PM',
-      location: 'Recreation Park',
-      description: 'Traditional dragon boat racing followed by dumpling making workshop and cultural activities.',
-      image: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=600&h=400&fit=crop',
-      status: 'upcoming'
-    },
-    {
-      id: 3,
-      name: 'Mid-Autumn Moon Festival',
-      category: 'Cultural',
-      date: 'Sep 20, 2026',
-      time: '7:00 PM',
-      location: 'Campus Green',
-      description: 'Evening gathering with mooncakes, lantern lighting, and traditional music performances.',
-      image: 'https://images.unsplash.com/photo-1569569970363-fa3c4ff2b7e0?w=600&h=400&fit=crop',
-      status: 'upcoming'
-    },
-    {
-      id: 4,
-      name: 'Hong Kong Movie Night',
-      category: 'Social',
-      date: 'Apr 30, 2026',
-      time: '8:00 PM',
-      location: 'Science 1 Auditorium',
-      description: 'Screening of classic Hong Kong cinema with snacks and discussion afterwards.',
-      image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&h=400&fit=crop',
-      status: 'upcoming'
-    },
-    {
-      id: 5,
-      name: 'Cantonese Language Workshop',
-      category: 'Workshop',
-      date: 'May 1, 2026',
-      time: '4:00 PM',
-      location: 'Library North Room 210',
-      description: 'Interactive Cantonese language learning session for beginners and intermediate speakers.',
-      image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600&h=400&fit=crop',
-      status: 'upcoming'
-    },
-    {
-      id: 6,
-      name: 'Spring Semester Kickoff',
-      category: 'Social',
-      date: 'Mar 20, 2026',
-      time: '5:00 PM',
-      location: 'Student Union Marketplace',
-      description: 'Welcome back party with games, food, and activities to start the semester.',
-      image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=600&h=400&fit=crop',
-      status: 'past'
-    }
-  ];
-
-  const filteredEvents = activeFilter === 'All'
-    ? events
-    : events.filter(event => event.category === activeFilter);
+  const filteredEvents = activeFilter === 'All' ? events : events.filter((event) => event.category === activeFilter);
 
   return (
     <div>
       <section className="bg-gradient-to-r from-[#DE2910] to-[#FF6B6B] py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl text-white mb-4">Events & Happenings</h1>
+          <h1 className="text-5xl text-white mb-4">{hero.heading}</h1>
           <p className="text-white/90">
             <a href="/" className="hover:underline">Home</a> / Events
           </p>
@@ -90,7 +33,7 @@ export default function Events() {
       </section>
 
       <section className="py-12 bg-white dark:bg-[#1a1b1e]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <Reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap gap-3 justify-center mb-12">
             {filters.map((filter) => (
               <button
@@ -113,7 +56,7 @@ export default function Events() {
                 event.status === 'past' ? 'opacity-75' : ''
               }`}>
                 <div className="relative">
-                  <img src={event.image} alt={event.name} className="w-full h-64 object-cover" />
+                  {event.image_url && <img src={event.image_url} alt={event.name} className="w-full h-64 object-cover" />}
                   {event.status === 'upcoming' && (
                     <div className="absolute top-4 right-4 bg-green-500 text-white text-xs px-3 py-1 rounded-full">
                       Upcoming
@@ -135,16 +78,20 @@ export default function Events() {
                   <div className="space-y-2 mb-4 text-[#555555]">
                     <div className="flex items-center">
                       <Calendar size={16} className="mr-3 text-[#DE2910]" />
-                      {event.date}
+                      {formatDate(event.event_date)}
                     </div>
-                    <div className="flex items-center">
-                      <Clock size={16} className="mr-3 text-[#DE2910]" />
-                      {event.time}
-                    </div>
-                    <div className="flex items-center">
-                      <MapPin size={16} className="mr-3 text-[#DE2910]" />
-                      {event.location}
-                    </div>
+                    {event.event_time && (
+                      <div className="flex items-center">
+                        <Clock size={16} className="mr-3 text-[#DE2910]" />
+                        {event.event_time}
+                      </div>
+                    )}
+                    {event.location && (
+                      <div className="flex items-center">
+                        <MapPin size={16} className="mr-3 text-[#DE2910]" />
+                        {event.location}
+                      </div>
+                    )}
                   </div>
 
                   <p className="text-[#555555] mb-4">{event.description}</p>
@@ -155,8 +102,11 @@ export default function Events() {
                 </div>
               </div>
             ))}
+            {filteredEvents.length === 0 && (
+              <p className="col-span-2 text-center text-[#555555] py-12">No events in this category yet.</p>
+            )}
           </div>
-        </div>
+        </Reveal>
       </section>
     </div>
   );

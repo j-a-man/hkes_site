@@ -1,5 +1,27 @@
 @custom-variant dark (&:is(.dark *));
 
+.portal-sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: #4b4b52 transparent;
+}
+
+.portal-sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.portal-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.portal-sidebar-nav::-webkit-scrollbar-thumb {
+  background-color: #4b4b52;
+  border-radius: 9999px;
+}
+
+.portal-sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background-color: #616169;
+}
+
 :root {
   --font-size: 16px;
   --background: #ffffff;
