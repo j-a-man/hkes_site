@@ -1,12 +1,20 @@
-import { useRef, useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useLoaderData, useRevalidator } from 'react-router';
+import { ExternalLink, Send } from 'lucide-react';
+import { toast } from 'sonner';
+import FilterChips from '../../components/site/FilterChips';
+import SiteButton from '../../components/site/SiteButton';
+import { Segmented, TABLE } from '../../components/portal/Controls';
+import { ChipCheckboxes, Field, FileDrop, FormError, INPUT } from '../../components/portal/Form';
 import PageHeader from '../../components/portal/PageHeader';
-import Reveal from '../../components/Reveal';
-import { Upload } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Panel, PanelHeader } from '../../components/portal/Panel';
+import QueueStats from '../../components/portal/QueueStats';
+import { StatusPill, StatusSelect } from '../../components/portal/Status';
+import { useAuth } from '../../lib/auth';
+import { dueInfo, formatTimestamp, mutate } from '../../lib/portal';
+import { formatDate, safeUrl } from '../../lib/site';
 import { supabase } from '../../lib/supabase';
 import { uploadFile } from '../../lib/uploads';
-import { useAuth } from '../../lib/auth';
 import type { GraphicRequestRow } from '../../lib/queries';
 
 interface LoaderData {
@@ -31,35 +39,23 @@ export default function PortalGraphicRequests() {
   const { requests } = useLoaderData() as LoaderData;
   const revalidator = useRevalidator();
   const { profile } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState('All');
 
-  const togglePlatform = (p: string) => {
-    setForm((f) => ({ ...f, platforms: f.platforms.includes(p) ? f.platforms.filter((x) => x !== p) : [...f.platforms, p] }));
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Complete': return 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300';
-      case 'In Progress': return 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-300';
-      default: return 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300';
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (form.platforms.length === 0) {
+      setError('Pick at least one platform.');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
-      let reference_image_url: string | null = null;
-      if (file) {
-        const uploaded = await uploadFile('graphics', file, profile?.id ?? 'anon');
-        reference_image_url = uploaded.publicUrl;
-      }
+      const reference_image_url = file ? (await uploadFile('graphics', file, profile?.id ?? 'anon')).publicUrl : null;
       const { error } = await supabase.from('graphic_requests').insert({
         requested_by: profile?.id,
         event_name: form.event_name,
@@ -74,147 +70,148 @@ export default function PortalGraphicRequests() {
       if (error) throw error;
       setForm(EMPTY_FORM);
       setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      toast.success('Request sent to Publicity');
       revalidator.revalidate();
-    } catch (err: any) {
-      setError(err.message ?? 'Something went wrong.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const stats = {
-    pending: requests.filter((r) => r.status === 'Pending').length,
-    inProgress: requests.filter((r) => r.status === 'In Progress').length,
-    complete: requests.filter((r) => r.status === 'Complete').length,
+  const updateStatus = async (id: string, status: string) => {
+    if (await mutate(supabase.from('graphic_requests').update({ status }).eq('id', id), `Moved to ${status}`)) revalidator.revalidate();
   };
 
-  const updateStatus = async (id: string, status: string) => {
-    await supabase.from('graphic_requests').update({ status }).eq('id', id);
-    revalidator.revalidate();
-  };
+  const count = (status: string) => requests.filter((r) => r.status === status).length;
+  const shown = statusFilter === 'All' ? requests : requests.filter((r) => r.status === statusFilter);
 
   return (
-      <div>
-        <PageHeader title="Graphic Requests" subtitle="Request new graphics and track the queue" />
+    <>
+      <PageHeader zh="設計" title="Graphic requests" subtitle="Ask Publicity for a flyer, story, or banner, then follow it through the queue." />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Reveal className="lg:col-span-2 bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-white/10">
-            <h2 className="text-2xl mb-4">New Request</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block mb-1 text-sm">Event/Post Name</label>
-                <input required value={form.event_name} onChange={(e) => setForm({ ...form, event_name: e.target.value })} className="w-full px-4 py-2 border border-border rounded-lg" />
-              </div>
-              <div>
-                <label className="block mb-1 text-sm">Type of Graphic</label>
-                <select value={form.graphic_type} onChange={(e) => setForm({ ...form, graphic_type: e.target.value })} className="w-full px-4 py-2 border border-border rounded-lg">
-                  {GRAPHIC_TYPES.map((t) => <option key={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block mb-1 text-sm">Platform(s) Needed For</label>
-                <div className="flex flex-wrap gap-4">
-                  {PLATFORMS.map((p) => (
-                    <label key={p} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={form.platforms.includes(p)} onChange={() => togglePlatform(p)} />
-                      {p}
-                    </label>
+      <div className="grid items-start gap-6 lg:grid-cols-3">
+        <Panel className="lg:col-span-2">
+          <PanelHeader title="New request" />
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Event or post name">
+                <input required value={form.event_name} onChange={(e) => setForm({ ...form, event_name: e.target.value })} className={INPUT} />
+              </Field>
+              <Field label="Type of graphic">
+                <select value={form.graphic_type} onChange={(e) => setForm({ ...form, graphic_type: e.target.value })} className={INPUT}>
+                  {GRAPHIC_TYPES.map((t) => (
+                    <option key={t}>{t}</option>
                   ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block mb-1 text-sm">Event Date & Time</label>
-                  <input type="datetime-local" value={form.event_datetime} onChange={(e) => setForm({ ...form, event_datetime: e.target.value })} className="w-full px-4 py-2 border border-border rounded-lg" />
-                </div>
-                <div>
-                  <label className="block mb-1 text-sm">Due Date</label>
-                  <input required type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="w-full px-4 py-2 border border-border rounded-lg" />
-                </div>
-              </div>
-              <div>
-                <label className="block mb-1 text-sm">Description of Content/Vibe</label>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-4 py-2 border border-border rounded-lg" rows={3} />
-              </div>
-              <div>
-                <label className="block mb-1 text-sm">Reference Image (Optional)</label>
-                <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-6 cursor-pointer hover:border-[#fa4e5b] transition-colors">
-                  <Upload size={24} className="text-[#555555]" />
-                  <span className="text-sm text-[#555555] dark:text-gray-400">{file ? file.name : 'Click to upload an image'}</span>
-                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-                </label>
-              </div>
-              <div>
-                <label className="block mb-1 text-sm">Priority Level</label>
-                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as 'Normal' | 'Urgent' })} className="w-full px-4 py-2 border border-border rounded-lg">
-                  <option>Normal</option>
-                  <option>Urgent</option>
                 </select>
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <motion.button
-                type="submit"
-                disabled={submitting}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                className="w-full bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white px-6 py-3 rounded-lg shadow-md disabled:opacity-60"
-              >
-                {submitting ? 'Submitting…' : 'Submit Request'}
-              </motion.button>
-            </form>
-          </Reveal>
-
-          <Reveal className="bg-gradient-to-br from-[#fa4e5b] to-[#ff7a65] rounded-2xl p-6 text-white h-fit">
-            <h2 className="text-xl mb-4">Queue Stats</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between"><span>Pending</span><span>{stats.pending}</span></div>
-              <div className="flex justify-between"><span>In Progress</span><span>{stats.inProgress}</span></div>
-              <div className="flex justify-between"><span>Completed</span><span>{stats.complete}</span></div>
+              </Field>
             </div>
-          </Reveal>
-        </div>
+            <ChipCheckboxes legend="Platforms" options={PLATFORMS} value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Event date & time" hint="Optional">
+                <input type="datetime-local" value={form.event_datetime} onChange={(e) => setForm({ ...form, event_datetime: e.target.value })} className={INPUT} />
+              </Field>
+              <Field label="Needed by">
+                <input required type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className={INPUT} />
+              </Field>
+            </div>
+            <Field label="Content & vibe" hint="What should it say, and how should it feel?">
+              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={INPUT} rows={3} />
+            </Field>
+            <FileDrop label="Reference image (optional)" accept="image/*" file={file} onFile={setFile} prompt="Drop an image here or click to choose" />
+            <div>
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-hk-ink-soft">Priority</span>
+              <Segmented
+                label="Priority"
+                value={form.priority}
+                onChange={(priority) => setForm({ ...form, priority })}
+                options={[
+                  { value: 'Normal', label: 'Normal' },
+                  { value: 'Urgent', label: 'Urgent' },
+                ]}
+              />
+            </div>
+            {error && <FormError>{error}</FormError>}
+            <SiteButton type="submit" disabled={submitting}>
+              <Send size={16} aria-hidden="true" />
+              {submitting ? 'Sending…' : 'Send request'}
+            </SiteButton>
+          </form>
+        </Panel>
 
-        <Reveal className="mt-8 bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden">
-          <div className="p-6 pb-0"><h2 className="text-2xl mb-4">Current Queue</h2></div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px]">
-              <thead className="bg-[#FFF8F6] dark:bg-white/5">
-                <tr>
-                  <th className="text-left p-4">Requester</th>
-                  <th className="text-left p-4">Event Name</th>
-                  <th className="text-left p-4">Type</th>
-                  <th className="text-left p-4">Platform</th>
-                  <th className="text-left p-4">Due Date</th>
-                  <th className="text-left p-4">Status</th>
-                  <th className="text-left p-4">Priority</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requests.map((r) => (
-                  <tr key={r.id} className="border-t border-border">
-                    <td className="p-4">{r.profiles?.full_name ?? '—'}</td>
-                    <td className="p-4">{r.event_name}</td>
-                    <td className="p-4">{r.graphic_type}</td>
-                    <td className="p-4">{r.platforms.join(', ')}</td>
-                    <td className="p-4 text-[#555555] dark:text-gray-400">{r.due_date}</td>
-                    <td className="p-4">
-                      <select value={r.status} onChange={(e) => updateStatus(r.id, e.target.value)} className={`px-3 py-1 rounded-full text-xs border-0 ${getStatusColor(r.status)}`}>
-                        {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
+        <QueueStats
+          title="The queue"
+          stats={[
+            { label: 'Pending', value: count('Pending') },
+            { label: 'In progress', value: count('In Progress') },
+            { label: 'Complete', value: count('Complete') },
+          ]}
+        />
+      </div>
+
+      <Panel flush className="mt-8">
+        <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <h2 className="font-display text-lg font-normal uppercase text-hk-ink">Current queue</h2>
+          <FilterChips label="Filter by status" options={['All', ...STATUS_OPTIONS]} value={statusFilter} onChange={setStatusFilter} />
+        </div>
+        <div className={TABLE.wrap}>
+          <table className={`${TABLE.table} min-w-[860px]`}>
+            <thead className={TABLE.head}>
+              <tr>
+                <th className={TABLE.th}>Request</th>
+                <th className={TABLE.th}>Type</th>
+                <th className={TABLE.th}>Platforms</th>
+                <th className={TABLE.th}>Needed by</th>
+                <th className={TABLE.th}>Priority</th>
+                <th className={TABLE.th}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((r) => {
+                const reference = safeUrl(r.reference_image_url);
+                const due = dueInfo(r.due_date);
+                return (
+                  <tr key={r.id} className={TABLE.tr}>
+                    <td className={`${TABLE.td} max-w-xs`}>
+                      <p className="font-semibold">{r.event_name}</p>
+                      <p className="mt-0.5 text-xs text-hk-ink-soft">
+                        {r.profiles?.full_name ?? 'Unknown'} · {formatTimestamp(r.created_at)}
+                      </p>
+                      {r.description && <p className="mt-1 line-clamp-2 text-hk-ink-soft">{r.description}</p>}
+                      {reference && (
+                        <a href={reference} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-hk-red hover:underline">
+                          Reference image <ExternalLink size={12} aria-hidden="true" />
+                        </a>
+                      )}
                     </td>
-                    <td className="p-4">
-                      {r.priority === 'Urgent'
-                        ? <span className="bg-red-500 text-white px-2 py-1 rounded text-xs">Urgent</span>
-                        : <span className="bg-gray-200 dark:bg-white/10 px-2 py-1 rounded text-xs">Normal</span>}
+                    <td className={TABLE.td}>{r.graphic_type}</td>
+                    <td className={TABLE.td}>{r.platforms.join(', ')}</td>
+                    <td className={`${TABLE.td} whitespace-nowrap`}>
+                      <p className="font-semibold">{formatDate(r.due_date, { month: 'short', day: 'numeric' })}</p>
+                      {r.status !== 'Complete' && (
+                        <p className={`mt-0.5 text-xs ${due.urgency === 'overdue' ? 'font-semibold text-hk-red' : 'text-hk-ink-soft'}`}>{due.text}</p>
+                      )}
+                    </td>
+                    <td className={TABLE.td}>
+                      <StatusPill status={r.priority} />
+                    </td>
+                    <td className={TABLE.td}>
+                      <StatusSelect label={`Status of ${r.event_name}`} value={r.status} options={STATUS_OPTIONS} onChange={(status) => updateStatus(r.id, status)} />
                     </td>
                   </tr>
-                ))}
-                {requests.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-[#555555] dark:text-gray-400">No requests yet.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </Reveal>
-      </div>
+                );
+              })}
+              {shown.length === 0 && (
+                <tr>
+                  <td colSpan={6} className={TABLE.empty}>
+                    {requests.length === 0 ? 'No requests yet.' : 'Nothing with that status.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </>
   );
 }

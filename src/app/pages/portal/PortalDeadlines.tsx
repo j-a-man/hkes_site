@@ -1,12 +1,18 @@
-import PageHeader from '../../components/portal/PageHeader';
-import Reveal from '../../components/Reveal';
-import Modal from '../../components/portal/Modal';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useLoaderData, useRevalidator } from 'react-router';
-import { Calendar as CalendarIcon, List, Plus, Trash2 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { supabase } from '../../lib/supabase';
+import { CalendarDays, ChevronLeft, ChevronRight, List, Pencil, Plus, Trash2 } from 'lucide-react';
+import FilterChips from '../../components/site/FilterChips';
+import SiteButton from '../../components/site/SiteButton';
+import { IconButton, Segmented, Switch, TABLE } from '../../components/portal/Controls';
+import { Field, FormError, INPUT } from '../../components/portal/Form';
+import Modal, { ConfirmDialog } from '../../components/portal/Modal';
+import PageHeader from '../../components/portal/PageHeader';
+import { EmptyState, Panel } from '../../components/portal/Panel';
+import { StatusPill, StatusSelect, statusLabel } from '../../components/portal/Status';
 import { useAuth } from '../../lib/auth';
+import { dueInfo, mutate, URGENCY_DOT } from '../../lib/portal';
+import { formatDate, todayISO } from '../../lib/site';
+import { supabase } from '../../lib/supabase';
 import type { DeadlineRow } from '../../lib/queries';
 
 interface LoaderData {
@@ -14,8 +20,33 @@ interface LoaderData {
 }
 
 const STATUS_OPTIONS = ['not-started', 'in-progress', 'on-track', 'complete'] as const;
-
 const EMPTY_FORM = { task: '', description: '', assigned_chair: '', due_date: '', status: 'not-started' as string };
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function isoOf(date: Date) {
+  return todayISO(date);
+}
+
+// Sunday-to-Saturday weeks covering the whole month.
+function monthGrid(month: Date) {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const start = new Date(first);
+  start.setDate(1 - first.getDay());
+  const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+  const cells = Math.ceil((first.getDay() + last.getDate()) / 7) * 7;
+  return Array.from({ length: cells }, (_, i) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + i);
+    return day;
+  });
+}
+
+const CHIP_TONES: Record<string, string> = {
+  'not-started': 'bg-amber-500/15 text-amber-900 dark:text-amber-200',
+  'in-progress': 'bg-sky-600/15 text-sky-900 dark:text-sky-200',
+  'on-track': 'bg-emerald-600/15 text-emerald-900 dark:text-emerald-200',
+  complete: 'bg-hk-ink/[0.07] text-hk-ink-soft line-through',
+};
 
 export default function PortalDeadlines() {
   const { deadlines } = useLoaderData() as LoaderData;
@@ -23,47 +54,35 @@ export default function PortalDeadlines() {
   const { profile, isExecutive } = useAuth();
 
   const [view, setView] = useState<'list' | 'calendar'>('list');
-  const [filter, setFilter] = useState('All');
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [chair, setChair] = useState('All');
+  const [hideComplete, setHideComplete] = useState(false);
+  const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+
+  const [editing, setEditing] = useState<DeadlineRow | 'new' | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<DeadlineRow | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const chairs = useMemo(() => ['All', ...Array.from(new Set(deadlines.map((d) => d.assigned_chair)))], [deadlines]);
+  const chairs = useMemo(() => Array.from(new Set(deadlines.map((d) => d.assigned_chair))).sort(), [deadlines]);
+  const shown = deadlines
+    .filter((d) => (chair === 'All' || d.assigned_chair === chair) && (!hideComplete || d.status !== 'complete'))
+    .sort((a, b) => a.due_date.localeCompare(b.due_date));
 
-  const filteredDeadlines = filter === 'All' ? deadlines : deadlines.filter((d) => d.assigned_chair === filter);
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'complete':
-        return <span className="bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 px-3 py-1 rounded-full text-xs">Complete</span>;
-      case 'in-progress':
-        return <span className="bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 px-3 py-1 rounded-full text-xs">In Progress</span>;
-      case 'not-started':
-        return <span className="bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 px-3 py-1 rounded-full text-xs">Not Started</span>;
-      case 'on-track':
-        return <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-xs">On Track</span>;
-      default:
-        return null;
-    }
-  };
-
-  const openAdd = () => {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
+  const openAdd = (dueDate = '') => {
+    setEditing('new');
+    setForm({ ...EMPTY_FORM, due_date: dueDate });
     setError(null);
-    setShowModal(true);
   };
 
   const openEdit = (d: DeadlineRow) => {
-    setEditingId(d.id);
+    setEditing(d);
     setForm({ task: d.task, description: d.description ?? '', assigned_chair: d.assigned_chair, due_date: d.due_date, status: d.status });
     setError(null);
-    setShowModal(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
@@ -74,181 +93,285 @@ export default function PortalDeadlines() {
       due_date: form.due_date,
       status: form.status,
     };
-    const { error } = editingId
-      ? await supabase.from('deadlines').update(payload).eq('id', editingId)
-      : await supabase.from('deadlines').insert({ ...payload, created_by: profile?.id });
+    const { error } =
+      editing && editing !== 'new'
+        ? await supabase.from('deadlines').update(payload).eq('id', editing.id)
+        : await supabase.from('deadlines').insert({ ...payload, created_by: profile?.id });
     setSaving(false);
     if (error) {
       setError(error.message);
       return;
     }
-    setShowModal(false);
+    setEditing(null);
     revalidator.revalidate();
   };
 
-  const handleDelete = async (id: string) => {
-    await supabase.from('deadlines').delete().eq('id', id);
-    revalidator.revalidate();
+  const updateStatus = async (d: DeadlineRow, status: string) => {
+    if (await mutate(supabase.from('deadlines').update({ status }).eq('id', d.id), `Marked "${d.task}" ${statusLabel(status).toLowerCase()}`)) {
+      revalidator.revalidate();
+    }
   };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    setBusy(true);
+    const ok = await mutate(supabase.from('deadlines').delete().eq('id', deleting.id), 'Deadline deleted');
+    setBusy(false);
+    if (ok) {
+      setDeleting(null);
+      revalidator.revalidate();
+    }
+  };
+
+  const today = todayISO();
+  const days = monthGrid(month);
+  const monthKey = isoOf(month).slice(0, 7);
+  const inMonth = shown.filter((d) => d.due_date.startsWith(monthKey));
+  const byDay = new Map<string, DeadlineRow[]>();
+  for (const d of shown) byDay.set(d.due_date, [...(byDay.get(d.due_date) ?? []), d]);
+  const shiftMonth = (delta: number) => setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
 
   return (
     <>
-      <div>
-        <PageHeader
-          title="Deadlines Tracker"
-          subtitle="Manage and track all upcoming deadlines"
-          action={
-            <motion.button
-              onClick={openAdd}
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              className="bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-shadow flex items-center justify-center gap-2 w-full sm:w-auto"
-            >
-              <Plus size={20} />
-              Add Deadline
-            </motion.button>
-          }
-        />
+      <PageHeader
+        zh="限期"
+        title="Deadlines"
+        subtitle="Everything the E-Board is working on, by chair and due date."
+        action={
+          <SiteButton type="button" size="sm" onClick={() => openAdd()}>
+            <Plus size={16} aria-hidden="true" />
+            Add deadline
+          </SiteButton>
+        }
+      />
 
-        <Reveal className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-white/10 mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setView('list')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  view === 'list'
-                    ? 'bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white'
-                    : 'bg-gray-100 dark:bg-white/5 text-[#1A1A1A] dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/10'
-                }`}
-              >
-                <List size={20} />
-                List View
-              </button>
-              <button
-                onClick={() => setView('calendar')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  view === 'calendar'
-                    ? 'bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white'
-                    : 'bg-gray-100 dark:bg-white/5 text-[#1A1A1A] dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/10'
-                }`}
-              >
-                <CalendarIcon size={20} />
-                Calendar View
-              </button>
-            </div>
+      <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-wrap items-center gap-4">
+          <Segmented
+            label="View"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'list', label: 'List', icon: <List size={15} aria-hidden="true" /> },
+              { value: 'calendar', label: 'Calendar', icon: <CalendarDays size={15} aria-hidden="true" /> },
+            ]}
+          />
+          <label className="inline-flex items-center gap-2.5 text-sm font-semibold text-hk-ink-soft">
+            <Switch checked={hideComplete} onChange={setHideComplete} label="Hide completed" />
+            Hide completed
+          </label>
+        </div>
+        {chairs.length > 1 && <FilterChips label="Filter by chair" options={['All', ...chairs]} value={chair} onChange={setChair} />}
+      </div>
 
-            <div className="flex flex-wrap gap-2">
-              {chairs.map((chair) => (
-                <button
-                  key={chair}
-                  onClick={() => setFilter(chair)}
-                  className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                    filter === chair
-                      ? 'bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white'
-                      : 'bg-gray-100 dark:bg-white/5 text-[#1A1A1A] dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/10'
-                  }`}
-                >
-                  {chair}
-                </button>
-              ))}
-            </div>
-          </div>
-        </Reveal>
-
-        {view === 'list' ? (
-          <Reveal className="bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden">
-            <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px]">
-              <thead className="bg-[#FFF8F6] dark:bg-white/5">
+      {view === 'list' ? (
+        <Panel flush>
+          <div className={TABLE.wrap}>
+            <table className={`${TABLE.table} min-w-[760px]`}>
+              <thead className={TABLE.head}>
                 <tr>
-                  <th className="text-left p-4">Task</th>
-                  <th className="text-left p-4">Assigned Chair</th>
-                  <th className="text-left p-4">Due Date</th>
-                  <th className="text-left p-4">Status</th>
-                  <th className="text-left p-4">Actions</th>
+                  <th className={TABLE.th}>Task</th>
+                  <th className={TABLE.th}>Chair</th>
+                  <th className={TABLE.th}>Due</th>
+                  <th className={TABLE.th}>Status</th>
+                  <th className={`${TABLE.th} text-right`}>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredDeadlines.map((deadline) => (
-                  <tr key={deadline.id} className="border-t border-border hover:bg-[#FFF8F6] dark:hover:bg-white/5 transition-colors">
-                    <td className="p-4">{deadline.task}</td>
-                    <td className="p-4">
-                      <span className="bg-purple-500 text-white px-3 py-1 rounded-full text-xs">{deadline.assigned_chair}</span>
-                    </td>
-                    <td className="p-4 text-[#555555] dark:text-gray-400">{deadline.due_date}</td>
-                    <td className="p-4">{getStatusBadge(deadline.status)}</td>
-                    <td className="p-4 flex items-center gap-3">
-                      <button onClick={() => openEdit(deadline)} className="text-[#fa4e5b] hover:underline text-sm">Edit</button>
-                      {isExecutive && (
-                        <button onClick={() => handleDelete(deadline.id)} className="text-gray-400 hover:text-red-500">
-                          <Trash2 size={16} />
-                        </button>
-                      )}
+                {shown.map((d) => {
+                  const due = dueInfo(d.due_date);
+                  return (
+                    <tr key={d.id} className={TABLE.tr}>
+                      <td className={`${TABLE.td} max-w-sm`}>
+                        <p className="font-semibold">{d.task}</p>
+                        {d.description && <p className="mt-0.5 line-clamp-2 text-hk-ink-soft">{d.description}</p>}
+                      </td>
+                      <td className={TABLE.td}>
+                        <StatusPill status={d.assigned_chair} tone="neutral" />
+                      </td>
+                      <td className={`${TABLE.td} whitespace-nowrap`}>
+                        <p className="font-semibold">{formatDate(d.due_date, { month: 'short', day: 'numeric' })}</p>
+                        {d.status !== 'complete' && (
+                          <p className={`mt-0.5 flex items-center gap-1.5 text-xs ${due.urgency === 'overdue' ? 'font-semibold text-hk-red' : 'text-hk-ink-soft'}`}>
+                            <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${URGENCY_DOT[due.urgency]}`} />
+                            {due.text}
+                          </p>
+                        )}
+                      </td>
+                      <td className={TABLE.td}>
+                        <StatusSelect label={`Status of ${d.task}`} value={d.status} options={STATUS_OPTIONS} onChange={(status) => updateStatus(d, status)} />
+                      </td>
+                      <td className={`${TABLE.td} text-right`}>
+                        <div className="inline-flex gap-1">
+                          <IconButton label={`Edit ${d.task}`} onClick={() => openEdit(d)}>
+                            <Pencil size={16} />
+                          </IconButton>
+                          {isExecutive && (
+                            <IconButton label={`Delete ${d.task}`} onClick={() => setDeleting(d)} danger>
+                              <Trash2 size={16} />
+                            </IconButton>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {shown.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className={TABLE.empty}>
+                      {deadlines.length === 0 ? 'No deadlines yet.' : 'Nothing matches these filters.'}
                     </td>
                   </tr>
-                ))}
-                {filteredDeadlines.length === 0 && (
-                  <tr><td colSpan={5} className="p-8 text-center text-[#555555] dark:text-gray-400">No deadlines yet.</td></tr>
                 )}
               </tbody>
             </table>
+          </div>
+        </Panel>
+      ) : (
+        <Panel>
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <h2 className="font-display text-xl font-normal uppercase text-hk-ink">
+              {month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </h2>
+            <div className="flex items-center gap-1">
+              <IconButton label="Previous month" onClick={() => shiftMonth(-1)}>
+                <ChevronLeft size={18} />
+              </IconButton>
+              <button
+                type="button"
+                onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}
+                className="rounded-full px-3 py-1.5 text-sm font-semibold text-hk-red hover:bg-hk-blush"
+              >
+                Today
+              </button>
+              <IconButton label="Next month" onClick={() => shiftMonth(1)}>
+                <ChevronRight size={18} />
+              </IconButton>
             </div>
-          </Reveal>
-        ) : (
-          <Reveal className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-3 sm:p-6 shadow-sm border border-gray-100 dark:border-white/10">
-            <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-4">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <div key={day} className="text-center text-[#555555] dark:text-gray-400 text-xs sm:text-base p-1 sm:p-2">
-                  <span className="sm:hidden">{day[0]}</span>
-                  <span className="hidden sm:inline">{day}</span>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-2">
-              {[...filteredDeadlines].sort((a, b) => a.due_date.localeCompare(b.due_date)).map((d) => (
-                <div key={d.id} className="flex items-center justify-between p-3 bg-[#FFF8F6] dark:bg-white/5 rounded-lg">
-                  <span>{d.task}</span>
-                  <span className="text-sm text-[#555555] dark:text-gray-400">{d.due_date}</span>
-                </div>
-              ))}
-              {filteredDeadlines.length === 0 && (
-                <p className="text-center text-[#555555] dark:text-gray-400 py-8">No deadlines to show.</p>
-              )}
-            </div>
-          </Reveal>
-        )}
-      </div>
+          </div>
 
-      <Modal open={showModal} onOpenChange={setShowModal} title={editingId ? 'Edit Deadline' : 'Add Deadline'}>
+          <div className="grid grid-cols-7 border-l border-t border-hk-line">
+            {WEEKDAYS.map((day) => (
+              <div key={day} className="border-b border-r border-hk-line bg-hk-paper px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-hk-ink-soft">
+                <span className="sm:hidden">{day[0]}</span>
+                <span className="hidden sm:inline">{day}</span>
+              </div>
+            ))}
+            {days.map((day) => {
+              const iso = isoOf(day);
+              const items = byDay.get(iso) ?? [];
+              const outside = day.getMonth() !== month.getMonth();
+              const isToday = iso === today;
+              return (
+                <div key={iso} className={`min-h-16 border-b border-r border-hk-line p-1.5 sm:min-h-28 sm:p-2 ${outside ? 'bg-hk-paper/60' : ''}`}>
+                  <button
+                    type="button"
+                    onClick={() => openAdd(iso)}
+                    aria-label={`Add a deadline on ${day.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`}
+                    className={`grid h-7 w-7 place-items-center rounded-full text-xs font-semibold transition-colors hover:bg-hk-blush ${
+                      isToday ? 'bg-hk-red text-white hover:bg-hk-red-dark' : outside ? 'text-hk-ink-soft/50' : 'text-hk-ink'
+                    }`}
+                  >
+                    {day.getDate()}
+                  </button>
+                  <ul className="mt-1 space-y-1">
+                    {items.map((d) => (
+                      <li key={d.id}>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(d)}
+                          title={d.task}
+                          className={`hidden w-full truncate rounded-md px-1.5 py-1 text-left text-[11px] font-semibold sm:block ${CHIP_TONES[d.status] ?? CHIP_TONES.complete}`}
+                        >
+                          {d.task}
+                        </button>
+                        <span aria-hidden="true" className={`block h-1.5 w-1.5 rounded-full sm:hidden ${d.status === 'complete' ? 'bg-hk-ink-soft/50' : URGENCY_DOT[dueInfo(d.due_date).urgency]}`} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+
+          <h3 className="mb-3 mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-hk-ink-soft">Due this month</h3>
+          {inMonth.length === 0 ? (
+            <EmptyState>Nothing due this month.</EmptyState>
+          ) : (
+            <ul className="divide-y divide-hk-line">
+              {inMonth.map((d) => (
+                <li key={d.id}>
+                  <button type="button" onClick={() => openEdit(d)} className="flex w-full items-center gap-4 py-3 text-left hover:text-hk-red">
+                    <span className="w-20 shrink-0 whitespace-nowrap font-display text-base leading-none">{formatDate(d.due_date, { month: 'short', day: 'numeric' })}</span>
+                    <span className="min-w-0 flex-1 truncate font-semibold">{d.task}</span>
+                    <StatusPill status={d.status} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      )}
+
+      <Modal open={editing !== null} onOpenChange={(open) => !open && setEditing(null)} title={editing === 'new' ? 'Add deadline' : 'Edit deadline'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block mb-1 text-sm">Task</label>
-            <input required value={form.task} onChange={(e) => setForm({ ...form, task: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg" />
+          <Field label="Task">
+            <input required value={form.task} onChange={(e) => setForm({ ...form, task: e.target.value })} className={INPUT} />
+          </Field>
+          <Field label="Description">
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={INPUT} rows={3} />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Assigned chair">
+              <input
+                required
+                list="deadline-chairs"
+                value={form.assigned_chair}
+                onChange={(e) => setForm({ ...form, assigned_chair: e.target.value })}
+                className={INPUT}
+                placeholder="e.g. Publicity"
+              />
+              <datalist id="deadline-chairs">
+                {chairs.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label="Due date">
+              <input required type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className={INPUT} />
+            </Field>
           </div>
-          <div>
-            <label className="block mb-1 text-sm">Description</label>
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg" rows={3} />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm">Assigned Chair</label>
-            <input required value={form.assigned_chair} onChange={(e) => setForm({ ...form, assigned_chair: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg" placeholder="e.g. Publicity" />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm">Due Date</label>
-            <input required type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg" />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm">Status</label>
-            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg">
-              {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+          <Field label="Status">
+            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className={INPUT}>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {statusLabel(s)}
+                </option>
+              ))}
             </select>
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button type="submit" disabled={saving} className="w-full bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white px-4 py-3 rounded-lg disabled:opacity-60">
-            {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Add Deadline'}
-          </button>
+          </Field>
+          {error && <FormError>{error}</FormError>}
+          <SiteButton type="submit" disabled={saving} className="w-full">
+            {saving ? 'Saving…' : editing === 'new' ? 'Add deadline' : 'Save changes'}
+          </SiteButton>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title="Delete deadline?"
+        body={
+          <>
+            <span className="font-semibold text-hk-ink">{deleting?.task}</span> will be removed for everyone. This can't be undone.
+          </>
+        }
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        busy={busy}
+      />
     </>
   );
 }

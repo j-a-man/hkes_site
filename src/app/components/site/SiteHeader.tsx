@@ -4,14 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowUpRight, Menu, X } from 'lucide-react';
 import Stamp from './Stamp';
 import { Squiggle } from './Doodles';
-
-export const NAV_ITEMS = [
-  { to: '/events', label: 'Events', zh: '活動' },
-  { to: '/fundraisers', label: 'Fundraisers', zh: '籌款' },
-  { to: '/gallery', label: 'Gallery', zh: '相簿' },
-  { to: '/about', label: 'About', zh: '關於我們' },
-  { to: '/contact', label: 'Contact', zh: '聯絡我們' },
-];
+import { NAV_ITEMS } from './nav';
 
 export default function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);

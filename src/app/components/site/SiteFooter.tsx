@@ -3,7 +3,7 @@ import { ArrowUpRight, Instagram, Linkedin, Mail, MapPin } from 'lucide-react';
 import TikTokIcon from '../icons/TikTokIcon';
 import Stamp from './Stamp';
 import { TornEdge } from './Paper';
-import { NAV_ITEMS } from './SiteHeader';
+import { NAV_ITEMS } from './nav';
 import type { SocialLink } from '../../lib/site';
 
 const SOCIAL_ICONS = { Instagram, TikTok: TikTokIcon, LinkedIn: Linkedin };

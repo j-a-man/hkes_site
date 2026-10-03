@@ -1,36 +1,23 @@
 import { defineConfig } from 'vite'
-import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
-
-function figmaAssetResolver() {
-  return {
-    name: 'figma-asset-resolver',
-    resolveId(id) {
-      if (id.startsWith('figma:asset/')) {
-        const filename = id.replace('figma:asset/', '')
-        return path.resolve(__dirname, 'src/assets', filename)
-      }
-    },
-  }
-}
-
 export default defineConfig({
-  plugins: [
-    figmaAssetResolver(),
-    // The React and Tailwind plugins are both required for Make, even if
-    // Tailwind is not being actively used – do not remove them
-    react(),
-    tailwindcss(),
-  ],
-  resolve: {
-    alias: {
-      // Alias @ to the src directory
-      '@': path.resolve(__dirname, './src'),
+  plugins: [react(), tailwindcss()],
+  server: {
+    // Honour a port handed in by tooling (e.g. preview launchers), else Vite's default.
+    port: Number(process.env.PORT) || 5173,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        // Long-lived vendor chunks, so a site update doesn't re-download the libraries.
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router'],
+          supabase: ['@supabase/supabase-js'],
+          motion: ['motion/react'],
+        },
+      },
     },
   },
-
-  // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
-  assetsInclude: ['**/*.svg', '**/*.csv'],
 })

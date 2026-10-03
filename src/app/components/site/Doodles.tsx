@@ -62,18 +62,3 @@ export function Arrow({ className = '', strokeWidth = 2.5 }: DoodleProps) {
     </svg>
   );
 }
-
-// A loose, overlapping loop for circling a word or number.
-export function Scribble({ className = '', strokeWidth = 3 }: DoodleProps) {
-  return (
-    <svg viewBox="0 0 200 80" preserveAspectRatio="none" className={className} aria-hidden="true" focusable="false" fill="none">
-      <path
-        d="M112 7C52 3 7 19 9 42c2 26 62 35 112 31 51-4 75-22 71-40C188 14 150 4 96 8 70 10 50 16 38 22"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  );
-}

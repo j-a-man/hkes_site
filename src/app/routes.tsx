@@ -1,8 +1,7 @@
+import type { ComponentType } from "react";
 import { createBrowserRouter, redirect } from "react-router";
 import Layout from "./components/Layout";
-import PortalLayout from "./components/PortalLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
-import RequirePortalAuth from "./components/portal/RequirePortalAuth";
 import Home from "./pages/Home";
 import Events from "./pages/Events";
 import Fundraisers from "./pages/Fundraisers";
@@ -11,18 +10,6 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 import QrEntry from "./pages/QrEntry";
-import PortalLogin from "./pages/portal/PortalLogin";
-import PortalResetPassword from "./pages/portal/PortalResetPassword";
-import PortalDashboard from "./pages/portal/PortalDashboard";
-import PortalDeadlines from "./pages/portal/PortalDeadlines";
-import PortalGraphicRequests from "./pages/portal/PortalGraphicRequests";
-import PortalPostRequests from "./pages/portal/PortalPostRequests";
-import PortalReimbursements from "./pages/portal/PortalReimbursements";
-import PortalMembers from "./pages/portal/PortalMembers";
-import PortalAnnouncements from "./pages/portal/PortalAnnouncements";
-import PortalSiteEditor from "./pages/portal/PortalSiteEditor";
-import PortalQrCampaigns from "./pages/portal/PortalQrCampaigns";
-import PortalQrCampaignDetail from "./pages/portal/PortalQrCampaignDetail";
 import { supabase } from "./lib/supabase";
 import { requireSession } from "./lib/auth";
 import {
@@ -37,6 +24,7 @@ import {
   getGraphicRequests,
   getPostRequests,
   getReimbursements,
+  getStatuses,
   getProfiles,
   getAllSiteContent,
   getQrCampaigns,
@@ -46,12 +34,22 @@ import {
   getQrEntryStats,
 } from "./lib/queries";
 
+// Portal screens are split into their own chunks, so public visitors never
+// download them (or the QR code and toast libraries they use).
+const lazyPage = (load: () => Promise<{ default: ComponentType }>) => async () => ({ Component: (await load()).default });
+
+// Shown while the first page's data loads, so the screen is paper, not blank white.
+function PageFallback() {
+  return <div className="min-h-screen bg-hk-paper" />;
+}
+
 export const router = createBrowserRouter([
   {
     id: "root",
     path: "/",
     Component: Layout,
-    ErrorBoundary: ErrorBoundary,
+    ErrorBoundary,
+    HydrateFallback: PageFallback,
     loader: async () => {
       const [globalContent, contactContent] = await Promise.all([getSiteContent("global"), getSiteContent("contact")]);
       return { globalContent, contactContent };
@@ -61,11 +59,7 @@ export const router = createBrowserRouter([
         index: true,
         Component: Home,
         loader: async () => {
-          const [content, events, photos] = await Promise.all([
-            getSiteContent("home"),
-            getEvents(),
-            getGalleryPhotos(),
-          ]);
+          const [content, events, photos] = await Promise.all([getSiteContent("home"), getEvents(), getGalleryPhotos()]);
           return { content, events, photos: photos.filter((p) => p.featured_on_home) };
         },
       },
@@ -89,11 +83,7 @@ export const router = createBrowserRouter([
         path: "gallery",
         Component: Gallery,
         loader: async () => {
-          const [content, photos, recaps] = await Promise.all([
-            getSiteContent("gallery"),
-            getGalleryPhotos(),
-            getFeaturedRecaps(),
-          ]);
+          const [content, photos, recaps] = await Promise.all([getSiteContent("gallery"), getGalleryPhotos(), getFeaturedRecaps()]);
           return { content, photos, recaps };
         },
       },
@@ -113,77 +103,80 @@ export const router = createBrowserRouter([
   {
     path: "/qr/:slug",
     Component: QrEntry,
-    ErrorBoundary: ErrorBoundary,
+    ErrorBoundary,
+    HydrateFallback: PageFallback,
     loader: async ({ params }) => ({ campaign: await getQrCampaignBySlug(params.slug!) }),
   },
   {
     path: "/portal",
-    ErrorBoundary: ErrorBoundary,
+    ErrorBoundary,
+    HydrateFallback: PageFallback,
     children: [
       {
         index: true,
-        Component: PortalLogin,
+        lazy: lazyPage(() => import("./pages/portal/PortalLogin")),
         loader: async () => {
           const { data } = await supabase.auth.getSession();
           if (data.session) throw redirect("/portal/dashboard");
           return null;
         },
       },
-      { path: "reset-password", Component: PortalResetPassword },
+      { path: "reset-password", lazy: lazyPage(() => import("./pages/portal/PortalResetPassword")) },
       {
         loader: requireSession,
-        Component: RequirePortalAuth,
+        lazy: lazyPage(() => import("./components/portal/RequirePortalAuth")),
         children: [
           {
-            Component: PortalLayout,
+            lazy: lazyPage(() => import("./components/PortalLayout")),
             children: [
               {
                 path: "dashboard",
-                Component: PortalDashboard,
+                lazy: lazyPage(() => import("./pages/portal/PortalDashboard")),
                 loader: async () => {
-                  const [deadlines, graphics, posts, reimbursements, announcements] = await Promise.all([
+                  const [deadlines, graphics, posts, reimbursements, announcements, events] = await Promise.all([
                     getDeadlines(),
-                    getGraphicRequests(),
-                    getPostRequests(),
-                    getReimbursements(),
+                    getStatuses("graphic_requests"),
+                    getStatuses("post_requests"),
+                    getStatuses("reimbursements"),
                     getAnnouncements(),
+                    getEvents(),
                   ]);
-                  return { deadlines, graphics, posts, reimbursements, announcements: announcements.slice(0, 3) };
+                  return { deadlines, graphics, posts, reimbursements, announcements: announcements.slice(0, 3), events };
                 },
               },
               {
                 path: "deadlines",
-                Component: PortalDeadlines,
+                lazy: lazyPage(() => import("./pages/portal/PortalDeadlines")),
                 loader: async () => ({ deadlines: await getDeadlines() }),
               },
               {
                 path: "graphics",
-                Component: PortalGraphicRequests,
+                lazy: lazyPage(() => import("./pages/portal/PortalGraphicRequests")),
                 loader: async () => ({ requests: await getGraphicRequests() }),
               },
               {
                 path: "posts",
-                Component: PortalPostRequests,
+                lazy: lazyPage(() => import("./pages/portal/PortalPostRequests")),
                 loader: async () => ({ requests: await getPostRequests() }),
               },
               {
                 path: "reimbursements",
-                Component: PortalReimbursements,
+                lazy: lazyPage(() => import("./pages/portal/PortalReimbursements")),
                 loader: async () => ({ reimbursements: await getReimbursements() }),
               },
               {
                 path: "members",
-                Component: PortalMembers,
+                lazy: lazyPage(() => import("./pages/portal/PortalMembers")),
                 loader: async () => ({ members: await getProfiles() }),
               },
               {
                 path: "announcements",
-                Component: PortalAnnouncements,
+                lazy: lazyPage(() => import("./pages/portal/PortalAnnouncements")),
                 loader: async () => ({ announcements: await getAnnouncements() }),
               },
               {
                 path: "qr-campaigns",
-                Component: PortalQrCampaigns,
+                lazy: lazyPage(() => import("./pages/portal/PortalQrCampaigns")),
                 loader: async () => {
                   const [campaigns, stats] = await Promise.all([getQrCampaigns(), getQrEntryStats()]);
                   return { campaigns, stats };
@@ -191,16 +184,15 @@ export const router = createBrowserRouter([
               },
               {
                 path: "qr-campaigns/:id",
-                Component: PortalQrCampaignDetail,
+                lazy: lazyPage(() => import("./pages/portal/PortalQrCampaignDetail")),
                 loader: async ({ params }) => {
-                  const campaign = await getQrCampaignById(params.id!);
-                  const entries = campaign ? await getQrCampaignEntries(campaign.id) : [];
-                  return { campaign, entries };
+                  const [campaign, entries] = await Promise.all([getQrCampaignById(params.id!), getQrCampaignEntries(params.id!)]);
+                  return { campaign, entries: campaign ? entries : [] };
                 },
               },
               {
                 path: "site-editor",
-                Component: PortalSiteEditor,
+                lazy: lazyPage(() => import("./pages/portal/PortalSiteEditor")),
                 loader: async () => {
                   const [content, events, photos, fundraisers, recaps] = await Promise.all([
                     getAllSiteContent(),

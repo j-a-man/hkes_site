@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useLoaderData, useRevalidator } from 'react-router';
+import { Pencil, Pin, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Tape } from '../../components/site/Paper';
+import SiteButton from '../../components/site/SiteButton';
+import { IconButton, Switch } from '../../components/portal/Controls';
+import { Field, FormError, INPUT } from '../../components/portal/Form';
+import Modal, { ConfirmDialog } from '../../components/portal/Modal';
 import PageHeader from '../../components/portal/PageHeader';
-import Reveal from '../../components/Reveal';
-import Modal from '../../components/portal/Modal';
-import { Plus, Pin, Pencil, Trash2 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { supabase } from '../../lib/supabase';
+import { EmptyState } from '../../components/portal/Panel';
 import { useAuth } from '../../lib/auth';
+import { formatTimestamp, mutate } from '../../lib/portal';
+import { supabase } from '../../lib/supabase';
 import type { AnnouncementRow } from '../../lib/queries';
 
 interface LoaderData {
@@ -20,111 +25,142 @@ export default function PortalAnnouncements() {
   const revalidator = useRevalidator();
   const { profile, isExecutive } = useAuth();
 
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<AnnouncementRow | 'new' | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<AnnouncementRow | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const openAdd = () => {
-    setEditingId(null);
+    setEditing('new');
     setForm(EMPTY_FORM);
     setError(null);
-    setShowModal(true);
   };
 
   const openEdit = (a: AnnouncementRow) => {
-    setEditingId(a.id);
+    setEditing(a);
     setForm({ title: a.title, message: a.message, pinned: a.pinned });
     setError(null);
-    setShowModal(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
-    const { error } = editingId
-      ? await supabase.from('announcements').update(form).eq('id', editingId)
-      : await supabase.from('announcements').insert({ ...form, author_id: profile?.id });
+    const { error } =
+      editing && editing !== 'new'
+        ? await supabase.from('announcements').update(form).eq('id', editing.id)
+        : await supabase.from('announcements').insert({ ...form, author_id: profile?.id });
     setSaving(false);
     if (error) {
       setError(error.message);
       return;
     }
-    setShowModal(false);
+    toast.success(editing === 'new' ? 'Announcement posted' : 'Announcement updated');
+    setEditing(null);
     revalidator.revalidate();
   };
 
-  const handleDelete = async (id: string) => {
-    await supabase.from('announcements').delete().eq('id', id);
-    revalidator.revalidate();
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    setBusy(true);
+    const ok = await mutate(supabase.from('announcements').delete().eq('id', deleting.id), 'Announcement deleted');
+    setBusy(false);
+    if (ok) {
+      setDeleting(null);
+      revalidator.revalidate();
+    }
   };
 
   return (
     <>
-      <div>
-        <PageHeader
-          title="Announcements"
-          subtitle="Updates from the E-Board"
-          action={isExecutive ? (
-            <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} onClick={openAdd}
-              className="bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white px-6 py-3 rounded-lg shadow-md flex items-center justify-center gap-2 w-full sm:w-auto">
-              <Plus size={20} /> New Announcement
-            </motion.button>
-          ) : undefined}
-        />
+      <PageHeader
+        zh="公告"
+        title="Announcements"
+        subtitle="Updates from the E-Board. Pinned notes stay on top."
+        action={
+          isExecutive ? (
+            <SiteButton type="button" size="sm" onClick={openAdd}>
+              <Plus size={16} aria-hidden="true" />
+              New announcement
+            </SiteButton>
+          ) : undefined
+        }
+      />
 
-        <div className="space-y-4">
+      {announcements.length === 0 ? (
+        <EmptyState>No announcements yet.</EmptyState>
+      ) : (
+        <ul className="space-y-6">
           {announcements.map((a) => (
-            <Reveal key={a.id} className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-white/10">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-2">
-                  {a.pinned && <Pin size={14} className="text-[#fa4e5b]" />}
-                  <h3 className="text-lg">{a.title}</h3>
+            <li
+              key={a.id}
+              className={`relative rounded-[22px] border bg-hk-card p-6 shadow-[0_18px_34px_-28px_rgba(30,23,20,0.5)] sm:p-7 ${a.pinned ? 'border-2 border-hk-red' : 'border-hk-line'}`}
+            >
+              {a.pinned && <Tape tone="red" className="-top-3.5 left-8 w-20 -rotate-3" />}
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  {a.pinned && (
+                    <p className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-hk-red">
+                      <Pin size={13} aria-hidden="true" /> Pinned
+                    </p>
+                  )}
+                  <h2 className="text-lg font-semibold leading-snug text-hk-ink">{a.title}</h2>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-hk-ink-soft">
+                    {a.profiles?.full_name ?? 'HKES'}
+                    {a.profiles?.title ? `, ${a.profiles.title}` : ''} · {formatTimestamp(a.created_at)}
+                  </p>
                 </div>
                 {isExecutive && (
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => openEdit(a)} className="text-gray-400 hover:text-[#fa4e5b]"><Pencil size={16} /></button>
-                    <button onClick={() => handleDelete(a.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
+                  <div className="flex shrink-0 gap-1">
+                    <IconButton label={`Edit ${a.title}`} onClick={() => openEdit(a)}>
+                      <Pencil size={16} />
+                    </IconButton>
+                    <IconButton label={`Delete ${a.title}`} onClick={() => setDeleting(a)} danger>
+                      <Trash2 size={16} />
+                    </IconButton>
                   </div>
                 )}
               </div>
-              <div className="flex justify-between items-center mb-3 text-sm text-[#555555] dark:text-gray-400">
-                <span>{a.profiles?.full_name ?? 'HKES'}{a.profiles?.title ? ` (${a.profiles.title})` : ''}</span>
-                <span>{new Date(a.created_at).toLocaleDateString()}</span>
-              </div>
-              <p className="text-[#555555] dark:text-gray-400">{a.message}</p>
-            </Reveal>
+              <p className="mt-4 whitespace-pre-line leading-relaxed text-hk-ink">{a.message}</p>
+            </li>
           ))}
-          {announcements.length === 0 && (
-            <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-12 shadow-sm border border-gray-100 dark:border-white/10 text-center">
-              <p className="text-[#555555] dark:text-gray-400">No announcements yet.</p>
-            </div>
-          )}
-        </div>
-      </div>
+        </ul>
+      )}
 
-      <Modal open={showModal} onOpenChange={setShowModal} title={editingId ? 'Edit Announcement' : 'New Announcement'}>
+      <Modal open={editing !== null} onOpenChange={(open) => !open && setEditing(null)} title={editing === 'new' ? 'New announcement' : 'Edit announcement'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block mb-1 text-sm">Title</label>
-            <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg" />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm">Message</label>
-            <textarea required value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg" rows={4} />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.pinned} onChange={(e) => setForm({ ...form, pinned: e.target.checked })} />
+          <Field label="Title">
+            <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={INPUT} />
+          </Field>
+          <Field label="Message">
+            <textarea required value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} className={INPUT} rows={5} />
+          </Field>
+          <label className="flex items-center gap-3 text-sm font-semibold text-hk-ink">
+            <Switch checked={form.pinned} onChange={(pinned) => setForm({ ...form, pinned })} label="Pin to top" />
             Pin to top
           </label>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button type="submit" disabled={saving} className="w-full bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white px-4 py-3 rounded-lg disabled:opacity-60">
-            {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Post Announcement'}
-          </button>
+          {error && <FormError>{error}</FormError>}
+          <SiteButton type="submit" disabled={saving} className="w-full">
+            {saving ? 'Saving…' : editing === 'new' ? 'Post announcement' : 'Save changes'}
+          </SiteButton>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title="Delete announcement?"
+        body={
+          <>
+            <span className="font-semibold text-hk-ink">{deleting?.title}</span> will be removed for everyone. This can't be undone.
+          </>
+        }
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        busy={busy}
+      />
     </>
   );
 }

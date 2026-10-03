@@ -1,183 +1,194 @@
 import { useEffect, useState } from 'react';
-import { Link, useLoaderData } from 'react-router';
+import { useLoaderData } from 'react-router';
 import QRCode from 'qrcode';
-import Reveal from '../../components/Reveal';
-import { ArrowLeft, Copy, Download, CheckCircle2 } from 'lucide-react';
+import { Check, Copy, Download, ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
+import FilterChips from '../../components/site/FilterChips';
+import SiteButton from '../../components/site/SiteButton';
+import Stamp from '../../components/site/Stamp';
+import { Switch, TABLE } from '../../components/portal/Controls';
+import PageHeader from '../../components/portal/PageHeader';
+import { EmptyState, Panel, PanelHeader } from '../../components/portal/Panel';
+import StatTile from '../../components/portal/StatTile';
+import { StatusPill } from '../../components/portal/Status';
+import { useAuth } from '../../lib/auth';
+import { downloadCsv } from '../../lib/portal';
+import { safeUrl } from '../../lib/site';
 import { supabase } from '../../lib/supabase';
-import type { QrCampaignRow, QrCampaignEntryRow } from '../../lib/queries';
+import type { QrCampaignEntryRow, QrCampaignRow } from '../../lib/queries';
 
 interface LoaderData {
   campaign: QrCampaignRow | null;
   entries: QrCampaignEntryRow[];
 }
 
+const BACK = { to: '/portal/qr-campaigns', label: 'All campaigns' };
+
 export default function PortalQrCampaignDetail() {
   const { campaign, entries: initialEntries } = useLoaderData() as LoaderData;
+  const { profile } = useAuth();
   const [entries, setEntries] = useState(initialEntries);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [filter, setFilter] = useState('All');
 
   const publicUrl = campaign ? `${window.location.origin}/qr/${campaign.slug}` : '';
 
+  useEffect(() => setEntries(initialEntries), [initialEntries]);
+
   useEffect(() => {
-    if (!campaign) return;
-    QRCode.toDataURL(publicUrl, { width: 320, margin: 2 }).then(setQrDataUrl);
-  }, [campaign?.slug]);
+    if (!publicUrl) return;
+    QRCode.toDataURL(publicUrl, { width: 640, margin: 2, color: { dark: '#1e1714', light: '#ffffff' } }).then(setQrDataUrl);
+  }, [publicUrl]);
 
   if (!campaign) {
     return (
-      <div>
-        <Link to="/portal/qr-campaigns" className="inline-flex items-center gap-2 text-sm text-[#fa4e5b] font-semibold mb-6">
-          <ArrowLeft size={16} /> Back to QR Campaigns
-        </Link>
-        <Reveal className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-8 text-center text-[#555555] dark:text-gray-400 shadow-sm border border-gray-100 dark:border-white/10">
-          Campaign not found.
-        </Reveal>
-      </div>
+      <>
+        <PageHeader zh="抽獎" title="Campaign not found" back={BACK} />
+        <EmptyState>This campaign doesn't exist, or it was deleted.</EmptyState>
+      </>
     );
   }
 
-  const toggleVerified = async (entry: QrCampaignEntryRow) => {
-    const verified = !entry.verified;
-    setEntries((rows) => rows.map((r) => (r.id === entry.id ? { ...r, verified } : r)));
-    await supabase
-      .from('qr_campaign_entries')
-      .update({ verified, verified_at: verified ? new Date().toISOString() : null })
-      .eq('id', entry.id);
+  const destination = safeUrl(campaign.destination_url);
+  const verifiedCount = entries.filter((e) => e.verified).length;
+  const shown = filter === 'Verified' ? entries.filter((e) => e.verified) : filter === 'To verify' ? entries.filter((e) => !e.verified) : entries;
+
+  // Optimistic, with a rollback if the write is rejected.
+  const setVerified = async (entry: QrCampaignEntryRow, verified: boolean) => {
+    const patch = { verified, verified_by: verified ? (profile?.id ?? null) : null, verified_at: verified ? new Date().toISOString() : null };
+    setEntries((rows) => rows.map((r) => (r.id === entry.id ? { ...r, ...patch } : r)));
+    const { error } = await supabase.from('qr_campaign_entries').update(patch).eq('id', entry.id);
+    if (error) {
+      setEntries((rows) => rows.map((r) => (r.id === entry.id ? entry : r)));
+      toast.error(error.message);
+    }
   };
 
   const copyLink = async () => {
     await navigator.clipboard.writeText(publicUrl);
     setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const downloadQr = () => {
     if (!qrDataUrl) return;
-    const a = document.createElement('a');
-    a.href = qrDataUrl;
-    a.download = `${campaign.slug}-qr.png`;
-    a.click();
+    const link = document.createElement('a');
+    link.href = qrDataUrl;
+    link.download = `${campaign.slug}-qr.png`;
+    link.click();
   };
 
   const exportCsv = () => {
-    const headers = ['Submitted At', ...campaign.questions.map((q) => q.label), 'Verified'];
-    const rows = entries.map((e) => [
-      new Date(e.created_at).toLocaleString(),
-      ...campaign.questions.map((q) => String(e.answers[q.id] ?? '')),
-      e.verified ? 'Yes' : 'No',
+    downloadCsv(`${campaign.slug}-entries.csv`, [
+      ['Submitted at', ...campaign.questions.map((q) => q.label), 'Verified'],
+      ...entries.map((e) => [new Date(e.created_at).toLocaleString(), ...campaign.questions.map((q) => e.answers[q.id] ?? ''), e.verified ? 'Yes' : 'No']),
     ]);
-    const csv = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${campaign.slug}-entries.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  };
+
+  const answer = (entry: QrCampaignEntryRow, id: string, type: string) => {
+    const value = entry.answers[id];
+    if (type === 'checkbox') return value ? 'Yes' : 'No';
+    return value ? String(value) : <span className="text-hk-ink-soft">None</span>;
   };
 
   return (
-    <div>
-      <Link to="/portal/qr-campaigns" className="inline-flex items-center gap-2 text-sm text-[#fa4e5b] font-semibold mb-6 hover:gap-3 transition-all">
-        <ArrowLeft size={16} /> Back to QR Campaigns
-      </Link>
+    <>
+      <PageHeader zh="抽獎" title={campaign.name} subtitle={publicUrl} back={BACK} action={<StatusPill status={campaign.active ? 'Active' : 'Paused'} />} />
 
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-8">
-        <div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl mb-2">{campaign.name}</h1>
-          <p className="text-[#555555] dark:text-gray-400 break-all">{publicUrl}</p>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Panel className="flex flex-col items-center text-center">
+          {/* QR codes need dark-on-white to scan, so this card stays white in dark mode. */}
+          <div className="relative rounded-2xl bg-white p-3 ring-1 ring-hk-line">
+            {qrDataUrl ? <img src={qrDataUrl} alt={`QR code for ${publicUrl}`} className="h-52 w-52" /> : <div className="grid h-52 w-52 place-items-center text-sm text-[#6b5e57]">Generating…</div>}
+            <Stamp size={46} className="absolute -bottom-4 -right-4 rotate-12 text-hk-red" />
+          </div>
+          <div className="mt-7 flex flex-wrap justify-center gap-2">
+            <SiteButton type="button" variant="outline-ink" size="sm" onClick={copyLink}>
+              {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+              {copied ? 'Copied' : 'Copy link'}
+            </SiteButton>
+            <SiteButton type="button" size="sm" onClick={downloadQr} disabled={!qrDataUrl}>
+              <Download size={14} aria-hidden="true" />
+              Download PNG
+            </SiteButton>
+          </div>
+        </Panel>
+
+        <div className="space-y-6 lg:col-span-2">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <StatTile value={entries.length} label="Entries" />
+            <StatTile value={verifiedCount} label="Verified" />
+            <StatTile value={entries.length - verifiedCount} label="To verify" />
+            <StatTile value={campaign.questions.length} label="Questions" />
+          </div>
+          <Panel>
+            <PanelHeader title="After entering" />
+            <p className="text-sm text-hk-ink-soft">People land on:</p>
+            {destination ? (
+              <a href={destination} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1.5 break-all font-semibold text-hk-red hover:underline">
+                {campaign.destination_url} <ExternalLink size={14} aria-hidden="true" className="shrink-0" />
+              </a>
+            ) : (
+              <p className="mt-1 font-semibold text-hk-red">
+                This link isn't a valid web address, so entrants see a thank-you message instead. Edit the campaign to fix it.
+              </p>
+            )}
+          </Panel>
         </div>
-        <span className={`text-xs font-semibold px-3 py-1.5 rounded-full w-fit ${campaign.active ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300' : 'bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300'}`}>
-          {campaign.active ? 'Active' : 'Paused'}
-        </span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <Reveal className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-white/10 flex flex-col items-center text-center">
-          {qrDataUrl ? (
-            <img src={qrDataUrl} alt="QR code" className="w-48 h-48 rounded-lg border border-border mb-4" />
-          ) : (
-            <div className="w-48 h-48 rounded-lg border border-border mb-4 flex items-center justify-center text-sm text-[#555555] dark:text-gray-400">Generating…</div>
-          )}
-          <div className="flex flex-wrap justify-center gap-2">
-            <button onClick={copyLink} className="inline-flex items-center gap-2 border border-border rounded-lg px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-white/5">
-              {copied ? <CheckCircle2 size={16} className="text-green-500" /> : <Copy size={16} />} {copied ? 'Copied' : 'Copy Link'}
-            </button>
-            <button onClick={downloadQr} className="inline-flex items-center gap-2 border border-border rounded-lg px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-white/5">
-              <Download size={16} /> Download PNG
-            </button>
+      <Panel flush className="mt-8">
+        <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <h2 className="font-display text-lg font-normal uppercase text-hk-ink">Entries</h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <FilterChips label="Filter entries" options={['All', 'To verify', 'Verified']} value={filter} onChange={setFilter} />
+            <SiteButton type="button" variant="outline-ink" size="sm" onClick={exportCsv} disabled={entries.length === 0}>
+              <Download size={14} aria-hidden="true" />
+              Export CSV
+            </SiteButton>
           </div>
-        </Reveal>
-
-        <Reveal className="lg:col-span-2 bg-gradient-to-br from-[#fa4e5b] to-[#ff7a65] rounded-2xl p-6 text-white">
-          <h2 className="text-xl mb-4">Campaign Summary</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div>
-              <p className="text-3xl font-bold">{entries.length}</p>
-              <p className="text-sm text-white/85">Entries</p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold">{entries.filter((e) => e.verified).length}</p>
-              <p className="text-sm text-white/85">Verified</p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold">{entries.length - entries.filter((e) => e.verified).length}</p>
-              <p className="text-sm text-white/85">Unverified</p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold">{campaign.questions.length}</p>
-              <p className="text-sm text-white/85">Questions</p>
-            </div>
-          </div>
-          <div className="mt-6 pt-6 border-t border-white/20 text-sm text-white/85 leading-relaxed">
-            Destination link: <a href={campaign.destination_url} target="_blank" rel="noopener noreferrer" className="underline break-all">{campaign.destination_url}</a>
-          </div>
-        </Reveal>
-      </div>
-
-      <Reveal className="bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden">
-        <div className="p-6 pb-0 flex justify-between items-center">
-          <h2 className="text-2xl mb-4">Entries ({entries.length})</h2>
-          <button onClick={exportCsv} className="inline-flex items-center gap-2 border border-border rounded-lg px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-white/5 mb-4">
-            <Download size={16} /> Export CSV
-          </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[480px]">
-            <thead className="bg-[#FFF8F6] dark:bg-white/5">
+        <div className={TABLE.wrap}>
+          <table className={`${TABLE.table} min-w-[560px]`}>
+            <thead className={TABLE.head}>
               <tr>
-                <th className="text-left p-4">Submitted</th>
+                <th className={TABLE.th}>Submitted</th>
                 {campaign.questions.map((q) => (
-                  <th key={q.id} className="text-left p-4">{q.label}</th>
+                  <th key={q.id} className={TABLE.th}>
+                    {q.label}
+                  </th>
                 ))}
-                <th className="text-left p-4">Verified</th>
+                <th className={TABLE.th}>Verified</th>
               </tr>
             </thead>
             <tbody>
-              {entries.map((entry) => (
-                <tr key={entry.id} className="border-t border-border">
-                  <td className="p-4 text-[#555555] dark:text-gray-400">{new Date(entry.created_at).toLocaleDateString()}</td>
+              {shown.map((entry) => (
+                <tr key={entry.id} className={TABLE.tr}>
+                  <td className={`${TABLE.td} whitespace-nowrap text-hk-ink-soft`}>
+                    {new Date(entry.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </td>
                   {campaign.questions.map((q) => (
-                    <td key={q.id} className="p-4">{q.type === 'checkbox' ? (entry.answers[q.id] ? 'Yes' : 'No') : String(entry.answers[q.id] ?? '—')}</td>
+                    <td key={q.id} className={`${TABLE.td} break-all`}>
+                      {answer(entry, q.id, q.type)}
+                    </td>
                   ))}
-                  <td className="p-4">
-                    <input type="checkbox" checked={entry.verified} onChange={() => toggleVerified(entry)} />
+                  <td className={TABLE.td}>
+                    <Switch checked={entry.verified} onChange={(verified) => setVerified(entry, verified)} label="Verified" />
                   </td>
                 </tr>
               ))}
-              {entries.length === 0 && (
+              {shown.length === 0 && (
                 <tr>
-                  <td colSpan={campaign.questions.length + 2} className="p-8 text-center text-[#555555] dark:text-gray-400">
-                    No entries yet.
+                  <td colSpan={campaign.questions.length + 2} className={TABLE.empty}>
+                    {entries.length === 0 ? 'No entries yet.' : 'Nothing here.'}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </Reveal>
-    </div>
+      </Panel>
+    </>
   );
 }

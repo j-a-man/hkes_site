@@ -1,12 +1,20 @@
-import { useRef, useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useLoaderData, useRevalidator } from 'react-router';
+import { ExternalLink, Send } from 'lucide-react';
+import { toast } from 'sonner';
+import FilterChips from '../../components/site/FilterChips';
+import SiteButton from '../../components/site/SiteButton';
+import { Segmented, TABLE } from '../../components/portal/Controls';
+import { ChipCheckboxes, Field, FileDrop, FormError, INPUT } from '../../components/portal/Form';
 import PageHeader from '../../components/portal/PageHeader';
-import Reveal from '../../components/Reveal';
-import { Upload } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Panel, PanelHeader } from '../../components/portal/Panel';
+import QueueStats, { Tips } from '../../components/portal/QueueStats';
+import { StatusSelect } from '../../components/portal/Status';
+import { useAuth } from '../../lib/auth';
+import { formatTimestamp, mutate } from '../../lib/portal';
+import { formatDate, safeUrl } from '../../lib/site';
 import { supabase } from '../../lib/supabase';
 import { uploadFile } from '../../lib/uploads';
-import { useAuth } from '../../lib/auth';
 import type { PostRequestRow } from '../../lib/queries';
 
 interface LoaderData {
@@ -16,6 +24,7 @@ interface LoaderData {
 const PLATFORMS = ['Instagram', 'Facebook', 'GroupMe', 'Email List', 'LinkedIn'];
 const POST_TYPES = ['Event Promo', 'Fundraiser', 'Recap', 'Announcement', 'Partnership'];
 const STATUS_OPTIONS = ['Pending', 'Scheduled', 'Published'] as const;
+const INSTAGRAM_SWEET_SPOT = 150;
 
 const EMPTY_FORM = {
   platforms: [] as string[],
@@ -31,35 +40,27 @@ export default function PortalPostRequests() {
   const { requests } = useLoaderData() as LoaderData;
   const revalidator = useRevalidator();
   const { profile } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState('All');
 
-  const togglePlatform = (p: string) => {
-    setForm((f) => ({ ...f, platforms: f.platforms.includes(p) ? f.platforms.filter((x) => x !== p) : [...f.platforms, p] }));
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Published': return 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300';
-      case 'Scheduled': return 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300';
-      default: return 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300';
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (form.platforms.length === 0) {
+      setError('Pick at least one platform.');
+      return;
+    }
+    if (form.link_url && !safeUrl(form.link_url)) {
+      setError('The link needs to start with http:// or https://.');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
-      let graphic_url: string | null = null;
-      if (form.has_graphic && file) {
-        const uploaded = await uploadFile('graphics', file, profile?.id ?? 'anon');
-        graphic_url = uploaded.publicUrl;
-      }
+      const graphic_url = form.has_graphic && file ? (await uploadFile('graphics', file, profile?.id ?? 'anon')).publicUrl : null;
       const { error } = await supabase.from('post_requests').insert({
         requested_by: profile?.id,
         platforms: form.platforms,
@@ -74,152 +75,157 @@ export default function PortalPostRequests() {
       if (error) throw error;
       setForm(EMPTY_FORM);
       setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      toast.success('Post request sent to Outreach');
       revalidator.revalidate();
-    } catch (err: any) {
-      setError(err.message ?? 'Something went wrong.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const stats = {
-    pending: requests.filter((r) => r.status === 'Pending').length,
-    scheduled: requests.filter((r) => r.status === 'Scheduled').length,
-    published: requests.filter((r) => r.status === 'Published').length,
+  const updateStatus = async (id: string, status: string) => {
+    if (await mutate(supabase.from('post_requests').update({ status }).eq('id', id), `Moved to ${status}`)) revalidator.revalidate();
   };
 
-  const updateStatus = async (id: string, status: string) => {
-    await supabase.from('post_requests').update({ status }).eq('id', id);
-    revalidator.revalidate();
-  };
+  const count = (status: string) => requests.filter((r) => r.status === status).length;
+  const shown = statusFilter === 'All' ? requests : requests.filter((r) => r.status === statusFilter);
+  const captionLength = form.caption.length;
 
   return (
-      <div>
-        <PageHeader title="Post Requests" subtitle="Request a social post and track the queue" />
+    <>
+      <PageHeader zh="帖文" title="Post requests" subtitle="Ask Outreach to post on our socials and email list, then track it to published." />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Reveal className="lg:col-span-2 bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-white/10">
-            <h2 className="text-2xl mb-4">New Post Request</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block mb-1 text-sm">Platform(s)</label>
-                <div className="flex flex-wrap gap-4">
-                  {PLATFORMS.map((p) => (
-                    <label key={p} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={form.platforms.includes(p)} onChange={() => togglePlatform(p)} />
-                      {p}
-                    </label>
+      <div className="grid items-start gap-6 lg:grid-cols-3">
+        <Panel className="lg:col-span-2">
+          <PanelHeader title="New post request" />
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <ChipCheckboxes legend="Platforms" options={PLATFORMS} value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Type of post">
+                <select value={form.post_type} onChange={(e) => setForm({ ...form, post_type: e.target.value })} className={INPUT}>
+                  {POST_TYPES.map((t) => (
+                    <option key={t}>{t}</option>
                   ))}
-                </div>
-              </div>
-              <div>
-                <label className="block mb-1 text-sm">Type of Post</label>
-                <select value={form.post_type} onChange={(e) => setForm({ ...form, post_type: e.target.value })} className="w-full px-4 py-2 border border-border rounded-lg">
-                  {POST_TYPES.map((t) => <option key={t}>{t}</option>)}
                 </select>
-              </div>
-              <div>
-                <label className="block mb-1 text-sm">Post Copy/Caption</label>
-                <textarea required value={form.caption} onChange={(e) => setForm({ ...form, caption: e.target.value })} className="w-full px-4 py-2 border border-border rounded-lg" rows={3} />
-              </div>
-              <div>
-                <label className="block mb-1 text-sm">Graphic Attached?</label>
-                <select
-                  value={form.has_graphic ? 'yes' : 'no'}
-                  onChange={(e) => setForm({ ...form, has_graphic: e.target.value === 'yes' })}
-                  className="w-full px-4 py-2 border border-border rounded-lg"
-                >
-                  <option value="yes">Yes - Upload below</option>
-                  <option value="no">No - Request from Publicity</option>
-                </select>
-              </div>
-              {form.has_graphic && (
-                <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-6 cursor-pointer hover:border-[#fa4e5b] transition-colors">
-                  <Upload size={24} className="text-[#555555]" />
-                  <span className="text-sm text-[#555555] dark:text-gray-400">{file ? file.name : 'Click to upload an image'}</span>
-                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-                </label>
-              )}
-              <div>
-                <label className="block mb-1 text-sm">Requested Publish Date</label>
-                <input required type="date" value={form.publish_date} onChange={(e) => setForm({ ...form, publish_date: e.target.value })} className="w-full px-4 py-2 border border-border rounded-lg" />
-              </div>
-              <div>
-                <label className="block mb-1 text-sm">Link to Include (Optional)</label>
-                <input type="url" value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} className="w-full px-4 py-2 border border-border rounded-lg" />
-              </div>
-              <div>
-                <label className="block mb-1 text-sm">Target Audience Notes</label>
-                <textarea value={form.audience_notes} onChange={(e) => setForm({ ...form, audience_notes: e.target.value })} className="w-full px-4 py-2 border border-border rounded-lg" rows={2} />
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <motion.button
-                type="submit"
-                disabled={submitting}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                className="w-full bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white px-6 py-3 rounded-lg shadow-md disabled:opacity-60"
-              >
-                {submitting ? 'Submitting…' : 'Submit Post Request'}
-              </motion.button>
-            </form>
-          </Reveal>
+              </Field>
+              <Field label="Publish on">
+                <input required type="date" value={form.publish_date} onChange={(e) => setForm({ ...form, publish_date: e.target.value })} className={INPUT} />
+              </Field>
+            </div>
+            <Field
+              label="Caption"
+              hint={`${captionLength} character${captionLength === 1 ? '' : 's'}${captionLength > INSTAGRAM_SWEET_SPOT ? ' · a little long for Instagram' : ''}`}
+            >
+              <textarea required value={form.caption} onChange={(e) => setForm({ ...form, caption: e.target.value })} className={INPUT} rows={4} />
+            </Field>
+            <div>
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-hk-ink-soft">Graphic</span>
+              <Segmented
+                label="Graphic"
+                value={form.has_graphic ? 'yes' : 'no'}
+                onChange={(value) => setForm({ ...form, has_graphic: value === 'yes' })}
+                options={[
+                  { value: 'no', label: 'Need one from Publicity' },
+                  { value: 'yes', label: 'I have one' },
+                ]}
+              />
+            </div>
+            {form.has_graphic && <FileDrop label="Upload your graphic" accept="image/*" file={file} onFile={setFile} prompt="Drop the graphic here or click to choose" />}
+            <Field label="Link to include" hint="Optional">
+              <input type="url" inputMode="url" placeholder="https://" value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} className={INPUT} />
+            </Field>
+            <Field label="Audience notes" hint="Optional: who is this for?">
+              <textarea value={form.audience_notes} onChange={(e) => setForm({ ...form, audience_notes: e.target.value })} className={INPUT} rows={2} />
+            </Field>
+            {error && <FormError>{error}</FormError>}
+            <SiteButton type="submit" disabled={submitting}>
+              <Send size={16} aria-hidden="true" />
+              {submitting ? 'Sending…' : 'Send request'}
+            </SiteButton>
+          </form>
+        </Panel>
 
-          <div className="space-y-6 h-fit">
-            <Reveal className="bg-gradient-to-br from-[#fa4e5b] to-[#ff7a65] rounded-2xl p-6 text-white">
-              <h2 className="text-xl mb-4">Post Queue Stats</h2>
-              <div className="space-y-3">
-                <div className="flex justify-between"><span>Pending</span><span>{stats.pending}</span></div>
-                <div className="flex justify-between"><span>Scheduled</span><span>{stats.scheduled}</span></div>
-                <div className="flex justify-between"><span>Published</span><span>{stats.published}</span></div>
-              </div>
-            </Reveal>
-            <Reveal className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-white/10">
-              <h2 className="text-lg mb-3">Outreach Tips</h2>
-              <ul className="text-sm text-[#555555] dark:text-gray-400 space-y-2 list-disc list-inside">
-                <li>Post 2–3 days before the event for best reach.</li>
-                <li>Keep captions under 150 characters for Instagram.</li>
-                <li>Tag @binghkes so we can reshare.</li>
-              </ul>
-            </Reveal>
-          </div>
+        <div className="space-y-6">
+          <QueueStats
+            title="The queue"
+            stats={[
+              { label: 'Pending', value: count('Pending') },
+              { label: 'Scheduled', value: count('Scheduled') },
+              { label: 'Published', value: count('Published') },
+            ]}
+          />
+          <Tips
+            title="Outreach tips"
+            tips={['Post 2 to 3 days before the event for the best reach.', 'Keep Instagram captions under 150 characters.', 'Tag @binghkes so we can reshare.']}
+          />
         </div>
+      </div>
 
-        <Reveal className="mt-8 bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden">
-          <div className="p-6 pb-0"><h2 className="text-2xl mb-4">Current Post Queue</h2></div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px]">
-              <thead className="bg-[#FFF8F6] dark:bg-white/5">
-                <tr>
-                  <th className="text-left p-4">Requester</th>
-                  <th className="text-left p-4">Platform</th>
-                  <th className="text-left p-4">Type</th>
-                  <th className="text-left p-4">Caption Preview</th>
-                  <th className="text-left p-4">Publish Date</th>
-                  <th className="text-left p-4">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requests.map((r) => (
-                  <tr key={r.id} className="border-t border-border">
-                    <td className="p-4">{r.profiles?.full_name ?? '—'}</td>
-                    <td className="p-4">{r.platforms.join(', ')}</td>
-                    <td className="p-4">{r.post_type}</td>
-                    <td className="p-4 max-w-xs truncate">{r.caption}</td>
-                    <td className="p-4 text-[#555555] dark:text-gray-400">{r.publish_date}</td>
-                    <td className="p-4">
-                      <select value={r.status} onChange={(e) => updateStatus(r.id, e.target.value)} className={`px-3 py-1 rounded-full text-xs border-0 ${getStatusColor(r.status)}`}>
-                        {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
+      <Panel flush className="mt-8">
+        <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <h2 className="font-display text-lg font-normal uppercase text-hk-ink">Current queue</h2>
+          <FilterChips label="Filter by status" options={['All', ...STATUS_OPTIONS]} value={statusFilter} onChange={setStatusFilter} />
+        </div>
+        <div className={TABLE.wrap}>
+          <table className={`${TABLE.table} min-w-[860px]`}>
+            <thead className={TABLE.head}>
+              <tr>
+                <th className={TABLE.th}>Caption</th>
+                <th className={TABLE.th}>Type</th>
+                <th className={TABLE.th}>Platforms</th>
+                <th className={TABLE.th}>Publish on</th>
+                <th className={TABLE.th}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((r) => {
+                const graphic = safeUrl(r.graphic_url);
+                const link = safeUrl(r.link_url);
+                return (
+                  <tr key={r.id} className={TABLE.tr}>
+                    <td className={`${TABLE.td} max-w-sm`}>
+                      <p className="line-clamp-2 font-semibold" title={r.caption}>
+                        {r.caption}
+                      </p>
+                      <p className="mt-0.5 text-xs text-hk-ink-soft">
+                        {r.profiles?.full_name ?? 'Unknown'} · {formatTimestamp(r.created_at)}
+                      </p>
+                      {(graphic || link) && (
+                        <p className="mt-1 flex flex-wrap gap-3 text-xs font-semibold">
+                          {graphic && (
+                            <a href={graphic} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-hk-red hover:underline">
+                              Graphic <ExternalLink size={12} aria-hidden="true" />
+                            </a>
+                          )}
+                          {link && (
+                            <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-hk-red hover:underline">
+                              Link <ExternalLink size={12} aria-hidden="true" />
+                            </a>
+                          )}
+                        </p>
+                      )}
+                    </td>
+                    <td className={TABLE.td}>{r.post_type}</td>
+                    <td className={TABLE.td}>{r.platforms.join(', ')}</td>
+                    <td className={`${TABLE.td} whitespace-nowrap font-semibold`}>{formatDate(r.publish_date, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                    <td className={TABLE.td}>
+                      <StatusSelect label="Post status" value={r.status} options={STATUS_OPTIONS} onChange={(status) => updateStatus(r.id, status)} />
                     </td>
                   </tr>
-                ))}
-                {requests.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-[#555555] dark:text-gray-400">No requests yet.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </Reveal>
-      </div>
+                );
+              })}
+              {shown.length === 0 && (
+                <tr>
+                  <td colSpan={5} className={TABLE.empty}>
+                    {requests.length === 0 ? 'No requests yet.' : 'Nothing with that status.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </>
   );
 }

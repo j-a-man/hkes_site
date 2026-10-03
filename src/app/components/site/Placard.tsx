@@ -8,7 +8,7 @@ import { dateParts } from '../../lib/site';
 export function PlacardFrame({ children, muted = false, className = '' }: { children: ReactNode; muted?: boolean; className?: string }) {
   return (
     <article
-      className={`relative flex h-full flex-col rounded-[22px] bg-white p-2 shadow-[0_1px_2px_rgba(30,23,20,0.1),0_20px_36px_-22px_rgba(30,23,20,0.55)] ring-1 ring-hk-line ${className}`}
+      className={`relative flex h-full flex-col rounded-[22px] bg-hk-card p-2 shadow-[0_1px_2px_rgba(30,23,20,0.1),0_20px_36px_-22px_rgba(30,23,20,0.55)] ring-1 ring-hk-line ${className}`}
     >
       <div className={`flex h-full flex-col rounded-[16px] border-2 p-5 sm:p-6 ${muted ? 'border-hk-ink/25' : 'border-hk-red'}`}>{children}</div>
     </article>
@@ -85,7 +85,7 @@ export default function Placard({ event, past = false, showImage = false, showDe
       <p className="mt-auto pt-5">
         <span
           className={`inline-block rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
-            past ? 'border-hk-ink/20 text-hk-ink-soft' : 'border-hk-red/30 text-hk-red-deep'
+            past ? 'border-hk-ink/20 text-hk-ink-soft' : 'border-hk-red/30 text-hk-red-deep dark:border-hk-red/60 dark:text-[#ff8f94]'
           }`}
         >
           {event.category}

@@ -8,9 +8,8 @@ import SiteButton from '../components/site/SiteButton';
 import Stamp from '../components/site/Stamp';
 import Reveal from '../components/Reveal';
 import type { Profile } from '../lib/auth';
-import { initials } from '../lib/roleColors';
 import { sectionContent } from '../lib/siteContentManifest';
-import type { ContentMap } from '../lib/site';
+import { initials, type ContentMap } from '../lib/site';
 
 interface LoaderData {
   content: ContentMap;

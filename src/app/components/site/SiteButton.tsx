@@ -16,10 +16,10 @@ const PRESS =
   'hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-[3px] active:translate-y-[3px] active:shadow-none';
 
 const VARIANTS: Record<Variant, string> = {
-  red: `border-hk-ink bg-hk-red text-white shadow-[4px_4px_0_0_var(--color-hk-ink)] hover:shadow-[6px_6px_0_0_var(--color-hk-ink)] focus-visible:outline-hk-ink ${PRESS}`,
+  red: `border-hk-shadow bg-hk-red text-white shadow-[4px_4px_0_0_var(--color-hk-shadow)] hover:shadow-[6px_6px_0_0_var(--color-hk-shadow)] focus-visible:outline-hk-ink ${PRESS}`,
   white: `border-hk-red-deep bg-white text-hk-red shadow-[4px_4px_0_0_var(--color-hk-red-deep)] hover:shadow-[6px_6px_0_0_var(--color-hk-red-deep)] focus-visible:outline-white ${PRESS}`,
   'outline-white': 'border-white/90 text-white hover:bg-white hover:text-hk-red focus-visible:outline-white',
-  'outline-ink': 'border-hk-ink text-hk-ink hover:bg-hk-ink hover:text-white focus-visible:outline-hk-red',
+  'outline-ink': 'border-hk-ink text-hk-ink hover:bg-hk-ink hover:text-hk-paper focus-visible:outline-hk-red',
 };
 
 interface CommonProps {

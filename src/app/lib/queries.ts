@@ -194,7 +194,7 @@ export async function getFeaturedRecaps(): Promise<FeaturedRecapRow[]> {
 }
 
 export async function getEboardProfiles(): Promise<Pick<Profile, 'id' | 'full_name' | 'title' | 'avatar_url'>[]> {
-  // Ordered by full_name (not created_at) — anon only has column-level SELECT on the
+  // Ordered by full_name (not created_at): anon only has column-level SELECT on the
   // public-safe fields, and PostgREST requires SELECT on any column referenced by ORDER BY.
   const res = await supabase
     .from('profiles')
@@ -245,6 +245,17 @@ export async function getReimbursements(): Promise<ReimbursementRow[]> {
     .select('*, profiles:requested_by(full_name)')
     .order('created_at', { ascending: false });
   return orThrow(res) as any;
+}
+
+export interface StatusRow {
+  status: string;
+  requested_by: string | null;
+}
+
+// Just enough of each request queue to count what's pending.
+export async function getStatuses(table: 'graphic_requests' | 'post_requests' | 'reimbursements'): Promise<StatusRow[]> {
+  const res = await supabase.from(table).select('status, requested_by');
+  return orThrow(res) as StatusRow[];
 }
 
 export async function getQrCampaigns(): Promise<QrCampaignRow[]> {

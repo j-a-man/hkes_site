@@ -1,217 +1,251 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router';
-import { LayoutDashboard, CheckSquare, Image, Send, DollarSign, Users, Megaphone, PenSquare, QrCode, LogOut, Menu, X, Moon, Sun } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
-import Logo from './Logo';
+import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import {
+  ArrowUpRight,
+  CheckSquare,
+  DollarSign,
+  Image,
+  LayoutDashboard,
+  LogOut,
+  Megaphone,
+  Menu,
+  Moon,
+  PenSquare,
+  QrCode,
+  Send,
+  Sun,
+  Users,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
+import { Toaster } from 'sonner';
+import Stamp from './site/Stamp';
 import { useAuth } from '../lib/auth';
+import { usePortalTheme } from '../lib/portalTheme';
 
 // Module-level so the scroll position survives even if this component remounts
 // (e.g. a fresh page load) rather than resetting to the top of the nav list.
 let savedSidebarScrollTop = 0;
 
-const THEME_KEY = 'hkes-portal-theme';
+const NAV_ITEMS: { to: string; label: string; zh: string; icon: LucideIcon }[] = [
+  { to: '/portal/dashboard', label: 'Dashboard', zh: '總覽', icon: LayoutDashboard },
+  { to: '/portal/deadlines', label: 'Deadlines', zh: '限期', icon: CheckSquare },
+  { to: '/portal/graphics', label: 'Graphic requests', zh: '設計', icon: Image },
+  { to: '/portal/posts', label: 'Post requests', zh: '帖文', icon: Send },
+  { to: '/portal/reimbursements', label: 'Reimbursements', zh: '報銷', icon: DollarSign },
+  { to: '/portal/members', label: 'Members', zh: '會員', icon: Users },
+  { to: '/portal/announcements', label: 'Announcements', zh: '公告', icon: Megaphone },
+  { to: '/portal/qr-campaigns', label: 'QR campaigns', zh: '抽獎', icon: QrCode },
+  { to: '/portal/site-editor', label: 'Site editor', zh: '網站', icon: PenSquare },
+];
 
-// Dark mode is a portal-only preference; the public site is always light, so
-// the class is removed again when the portal unmounts.
-function usePortalDarkMode() {
-  const [dark, setDark] = useState(() => {
-    try {
-      return localStorage.getItem(THEME_KEY) === 'dark';
-    } catch {
-      return false;
-    }
-  });
+const SIDEBAR_BUTTON =
+  'flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-white/90 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-3 focus-visible:outline-white';
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
-    try {
-      localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
-    } catch {
-      // Storage can be unavailable (private mode); the toggle still works for this visit.
-    }
-    return () => document.documentElement.classList.remove('dark');
-  }, [dark]);
-
-  return [dark, setDark] as const;
+function NameTag() {
+  const { profile } = useAuth();
+  const title = profile?.title ?? (profile?.role === 'executive' ? 'Executive' : 'Member');
+  return (
+    <div className="-rotate-1 overflow-hidden rounded-2xl bg-hk-card text-hk-ink shadow-[4px_5px_0_0_rgba(0,0,0,0.18)]">
+      <p className="bg-hk-red-deep px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.24em] text-white">
+        <span lang="zh-HK" className="mr-1.5 font-zh text-xs tracking-normal">
+          你好
+        </span>
+        Hello, my name is
+      </p>
+      <div className="px-4 pb-3 pt-2 text-center">
+        <p className="truncate font-hand text-[1.75rem] font-semibold leading-tight">{profile?.full_name ?? '…'}</p>
+        <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-hk-red">{profile ? title : ''}</p>
+      </div>
+    </div>
+  );
 }
 
-export default function PortalLayout() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { profile, signOut } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [darkMode, setDarkMode] = usePortalDarkMode();
+function SidebarContent({ onNavigate, darkMode, onToggleDark, onSignOut }: { onNavigate: () => void; darkMode: boolean; onToggleDark: () => void; onSignOut: () => void }) {
   const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (navRef.current) navRef.current.scrollTop = savedSidebarScrollTop;
   }, []);
 
-  const userName = profile?.full_name ?? '';
-  const userRole = profile?.title ?? (profile?.role === 'executive' ? 'Executive' : 'Member');
-
-  const navItems = [
-    { name: 'Dashboard', path: '/portal/dashboard', icon: LayoutDashboard },
-    { name: 'Deadlines', path: '/portal/deadlines', icon: CheckSquare },
-    { name: 'Graphic Requests', path: '/portal/graphics', icon: Image },
-    { name: 'Post Requests', path: '/portal/posts', icon: Send },
-    { name: 'Reimbursements', path: '/portal/reimbursements', icon: DollarSign },
-    { name: 'Members', path: '/portal/members', icon: Users },
-    { name: 'Announcements', path: '/portal/announcements', icon: Megaphone },
-    { name: 'QR Campaigns', path: '/portal/qr-campaigns', icon: QrCode },
-    { name: 'Site Editor', path: '/portal/site-editor', icon: PenSquare },
-  ];
-
-  const handleExit = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    await signOut();
-    navigate('/');
-  };
-
-  const getRoleBadgeColor = (role: string) => {
-    const colors: { [key: string]: string } = {
-      'Publicity Chair': 'bg-purple-500',
-      'President': 'bg-[#fa4e5b]',
-      'Vice President': 'bg-orange-500',
-      'Treasurer': 'bg-green-500',
-      'Secretary': 'bg-blue-500',
-      'Outreach Chair': 'bg-[#ff7a65]',
-      'Executive': 'bg-[#fa4e5b]',
-    };
-    return colors[role] || 'bg-gray-500';
-  };
-
-  const SidebarContent = () => (
+  return (
     <>
-      <div className="p-6 pb-0 shrink-0">
-        <div className="flex items-center justify-between mb-8">
-          <Logo size={48} />
-          <button
-            className="lg:hidden text-gray-400 hover:text-white transition-colors"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            <X size={24} />
-          </button>
-        </div>
-
-        <div className="mb-6 bg-white/5 rounded-2xl p-4 border border-white/10 backdrop-blur-sm shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#ffbba1] to-[#fa4e5b] rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-white text-lg font-bold tracking-wider">
-                {userName ? userName.split(' ').map((n) => n[0]).join('') : '…'}
+      <div className="shrink-0 px-5 pb-5 pt-6">
+        <Link to="/portal/dashboard" onClick={onNavigate} className="flex items-center gap-3 rounded-xl focus-visible:outline-3 focus-visible:outline-white">
+          <Stamp size={44} className="text-white" />
+          <span className="leading-none">
+            <span className="block font-display text-xl">HKES</span>
+            <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.22em] text-white/85">
+              <span lang="zh-HK" className="mr-1 font-zh text-[11px] tracking-normal">
+                會員專區
               </span>
-            </div>
-            <div>
-              <p className="text-white font-bold text-sm">{userName}</p>
-              <p className={`text-[10px] mt-1 px-2 py-0.5 rounded-full inline-block ${getRoleBadgeColor(userRole)} text-white font-semibold tracking-wider uppercase`}>
-                {userRole}
-              </p>
-            </div>
-          </div>
+              Member portal
+            </span>
+          </span>
+        </Link>
+        <div className="mt-6">
+          <NameTag />
         </div>
       </div>
 
       <nav
         ref={navRef}
-        onScroll={(e) => { savedSidebarScrollTop = e.currentTarget.scrollTop; }}
-        className="portal-sidebar-nav flex-1 overflow-y-auto px-6 py-4 space-y-2"
+        aria-label="Portal"
+        onScroll={(e) => {
+          savedSidebarScrollTop = e.currentTarget.scrollTop;
+        }}
+        className="portal-sidebar-nav flex-1 overflow-y-auto px-3 py-2"
       >
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = location.pathname.includes(item.path);
-
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 font-medium ${isActive
-                  ? 'bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white shadow-[0_4px_15px_rgba(250,78,91,0.3)] translate-x-1'
-                  : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                }`}
-            >
-              <Icon size={20} className={isActive ? 'text-white' : 'text-gray-400'} />
-              <span>{item.name}</span>
-            </Link>
-          );
-        })}
+        <ul className="space-y-1">
+          {NAV_ITEMS.map(({ to, label, zh, icon: Icon }) => (
+            <li key={to}>
+              <NavLink
+                to={to}
+                onClick={onNavigate}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-3 focus-visible:outline-white ${
+                    isActive ? 'bg-hk-card text-hk-red shadow-[3px_3px_0_0_rgba(0,0,0,0.18)]' : 'text-white/90 hover:bg-white/10 hover:text-white'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <Icon size={18} aria-hidden="true" className="shrink-0" />
+                    <span className="flex-1">{label}</span>
+                    <span lang="zh-HK" aria-hidden="true" className={`font-zh text-xs ${isActive ? 'text-hk-red/70' : 'text-white/55'}`}>
+                      {zh}
+                    </span>
+                  </>
+                )}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
       </nav>
 
-      <div className="p-6 border-t border-white/10 shrink-0 space-y-1">
-        <button
-          type="button"
-          onClick={() => setDarkMode((d) => !d)}
-          className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-white/5 hover:text-white rounded-xl transition-colors font-medium"
-        >
-          {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-          <span>{darkMode ? 'Light mode' : 'Dark mode'}</span>
+      <div className="shrink-0 space-y-1 border-t border-white/20 px-3 py-4">
+        <button type="button" onClick={onToggleDark} className={SIDEBAR_BUTTON}>
+          {darkMode ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+          {darkMode ? 'Light mode' : 'Dark mode'}
         </button>
-        <Link
-          to="/"
-          onClick={handleExit}
-          className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-red-500/10 hover:text-[#fa4e5b] rounded-xl transition-colors font-medium"
-        >
-          <LogOut size={20} />
-          <span>Exit Portal</span>
+        <Link to="/" className={SIDEBAR_BUTTON}>
+          <ArrowUpRight size={18} aria-hidden="true" />
+          Public site
         </Link>
+        <button type="button" onClick={onSignOut} className={SIDEBAR_BUTTON}>
+          <LogOut size={18} aria-hidden="true" />
+          Sign out
+        </button>
       </div>
     </>
   );
+}
+
+export default function PortalLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+  const reduceMotion = useReducedMotion();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { darkMode, setDarkMode } = usePortalTheme();
+
+  useEffect(() => setMenuOpen(false), [location.pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/portal');
+  };
+
+  const sidebarProps = {
+    onNavigate: () => setMenuOpen(false),
+    darkMode,
+    onToggleDark: () => setDarkMode(!darkMode),
+    onSignOut: handleSignOut,
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#101112] flex font-['Poppins']">
-
-      {/* Mobile Header Overlay to show Hamburger */}
-      <div className="lg:hidden fixed top-0 w-full h-16 bg-white/90 dark:bg-[#1a1b1e]/90 backdrop-blur-md z-40 border-b border-gray-100 dark:border-white/10 flex items-center px-4 shadow-sm">
-        <button
-          onClick={() => setMobileMenuOpen(true)}
-          className="p-2 text-[#fa4e5b] hover:bg-red-50 dark:hover:bg-white/5 rounded-lg transition-colors"
-        >
-          <Menu size={28} />
-        </button>
-        <span className="ml-4 font-bold text-gray-800 dark:text-white tracking-wider">HKES PORTAL</span>
-      </div>
-
-      {/* Mobile Sidebar Overlay */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            className="lg:hidden fixed inset-0 bg-black/50 z-[45]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            onClick={() => setMobileMenuOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex fixed inset-y-0 left-0 w-72 bg-[#1a1b1e] text-white flex-col z-50">
-        <SidebarContent />
+    <div className="min-h-screen bg-hk-paper font-['Poppins'] text-hk-ink antialiased selection:bg-hk-red selection:text-white">
+      <aside className="paper-grain fixed inset-y-0 left-0 z-40 hidden w-72 flex-col bg-hk-red text-white [--grain-opacity:0.1] lg:flex">
+        <SidebarContent {...sidebarProps} />
       </aside>
 
-      {/* Mobile Sidebar Drawer */}
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-hk-line bg-hk-paper/90 px-4 backdrop-blur-md lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Open menu"
+          aria-expanded={menuOpen}
+          className="grid h-11 w-11 place-items-center rounded-full text-hk-ink hover:bg-hk-blush focus-visible:outline-3 focus-visible:outline-hk-red"
+        >
+          <Menu size={24} />
+        </button>
+        <Link to="/portal/dashboard" className="flex items-center gap-2.5">
+          <Stamp size={34} className="text-hk-red" />
+          <span className="font-display text-lg">HKES</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-hk-ink-soft">Portal</span>
+        </Link>
+      </header>
+
       <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.aside
-            className="lg:hidden fixed inset-y-0 left-0 w-72 bg-[#1a1b1e] text-white flex flex-col z-50"
-            initial={{ x: '-100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '-100%' }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-          >
-            <SidebarContent />
-          </motion.aside>
+        {menuOpen && (
+          <>
+            <motion.div
+              className="fixed inset-0 z-[45] bg-[#120d0c]/50 lg:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMenuOpen(false)}
+            />
+            <motion.aside
+              aria-label="Portal menu"
+              className="paper-grain fixed inset-y-0 left-0 z-50 flex w-[19rem] max-w-[85vw] flex-col bg-hk-red text-white [--grain-opacity:0.1] lg:hidden"
+              initial={reduceMotion ? { opacity: 0 } : { x: '-100%' }}
+              animate={reduceMotion ? { opacity: 1 } : { x: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { x: '-100%' }}
+              transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+            >
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                aria-label="Close menu"
+                className="absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-full text-white hover:bg-white/10"
+              >
+                <X size={22} />
+              </button>
+              <SidebarContent {...sidebarProps} />
+            </motion.aside>
+          </>
         )}
       </AnimatePresence>
 
-      {/* Main Content Area */}
-      <main className="flex-1 min-w-0 min-h-screen lg:ml-72 pt-16 lg:pt-0 bg-[#FFF8F6] dark:bg-[#101112]">
-        <div className="max-w-6xl mx-auto p-4 sm:p-8 lg:p-12 w-full h-full min-h-screen flex flex-col">
+      <main className="lg:pl-72">
+        <div className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8 sm:px-8 lg:pt-12">
           <Outlet />
         </div>
       </main>
+
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          unstyled: true,
+          classNames: {
+            toast:
+              "flex w-[min(22rem,calc(100vw-2rem))] items-start gap-3 rounded-2xl border-2 border-hk-shadow bg-hk-card px-4 py-3 font-['Poppins'] text-sm text-hk-ink shadow-[4px_4px_0_0_var(--color-hk-red)]",
+            title: 'font-semibold',
+            description: 'text-hk-ink-soft',
+            error: 'border-hk-red!',
+          },
+        }}
+      />
+      <ScrollRestoration />
     </div>
   );
 }

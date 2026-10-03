@@ -1,76 +1,105 @@
-import PageHeader from '../../components/portal/PageHeader';
-import Reveal from '../../components/Reveal';
-import Modal from '../../components/portal/Modal';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useLoaderData, useRevalidator } from 'react-router';
-import { Search, Plus, Pencil, Copy } from 'lucide-react';
-import { motion, useReducedMotion } from 'motion/react';
-import { supabase } from '../../lib/supabase';
+import { Check, Copy, Mail, Pencil, Phone, Plus, Search, UserMinus } from 'lucide-react';
+import { toast } from 'sonner';
+import SiteButton from '../../components/site/SiteButton';
+import { IconButton } from '../../components/portal/Controls';
+import { Field, FormError, FormSuccess, INPUT } from '../../components/portal/Form';
+import Modal, { ConfirmDialog } from '../../components/portal/Modal';
+import PageHeader from '../../components/portal/PageHeader';
+import { EmptyState } from '../../components/portal/Panel';
+import StatTile from '../../components/portal/StatTile';
 import { useAuth, type Profile } from '../../lib/auth';
-import { staggerContainer, fadeUp } from '../../lib/motion';
-import { getRoleBadgeColor, getAvatarColor, initials } from '../../lib/roleColors';
+import { formatTimestamp } from '../../lib/portal';
+import { formatDate, initials } from '../../lib/site';
+import { supabase } from '../../lib/supabase';
 
 interface LoaderData {
   members: Profile[];
 }
 
-const ADD_FORM_EMPTY = { full_name: '', email: '', title: 'Member', role: 'member' as 'member' | 'executive' };
+type Role = 'member' | 'executive';
+const ADD_FORM_EMPTY = { full_name: '', email: '', title: 'Member', role: 'member' as Role };
+
+// Edge-function errors arrive either as `data.error` or as a thrown error.
+async function manageMember(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke('admin-manage-member', { body });
+  return { data, error: (data?.error as string | undefined) ?? error?.message ?? null };
+}
+
+function CopyValue({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-center justify-between gap-3 py-2.5">
+      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-hk-ink-soft">{label}</span>
+      <span className="flex min-w-0 items-center gap-2">
+        <code className="truncate rounded-md bg-hk-paper px-2 py-1 text-sm">{value}</code>
+        <IconButton
+          label={`Copy ${label.toLowerCase()}`}
+          onClick={async () => {
+            await navigator.clipboard.writeText(value);
+            setCopied(true);
+          }}
+        >
+          {copied ? <Check size={16} /> : <Copy size={16} />}
+        </IconButton>
+      </span>
+    </div>
+  );
+}
 
 export default function PortalMembers() {
   const { members } = useLoaderData() as LoaderData;
   const revalidator = useRevalidator();
-  const { profile, isExecutive } = useAuth();
+  const { profile, isExecutive, refreshProfile } = useAuth();
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('All');
-  const shouldReduceMotion = useReducedMotion();
+  const [search, setSearch] = useState('');
+  const [titleFilter, setTitleFilter] = useState('All');
+  const titles = useMemo(() => Array.from(new Set(members.map((m) => m.title))).sort(), [members]);
 
-  const titles = useMemo(() => ['All', ...Array.from(new Set(members.map((m) => m.title)))], [members]);
-
-  const filteredMembers = members.filter((member) => {
-    const matchesSearch = member.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === 'All' || member.title === roleFilter;
-    return matchesSearch && matchesRole;
-  });
+  const query = search.trim().toLowerCase();
+  const shown = members.filter(
+    (m) => (titleFilter === 'All' || m.title === titleFilter) && (!query || m.full_name.toLowerCase().includes(query) || m.email.toLowerCase().includes(query)),
+  );
 
   // Add member
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState(ADD_FORM_EMPTY);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
-  const [createdCreds, setCreatedCreds] = useState<{ email: string; temp_password: string } | null>(null);
+  const [created, setCreated] = useState<{ email: string; temp_password: string } | null>(null);
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
     setAdding(true);
     setAddError(null);
-    const { data, error } = await supabase.functions.invoke('admin-manage-member', {
-      body: { action: 'create', ...addForm },
-    });
+    const { data, error } = await manageMember({ action: 'create', ...addForm });
     setAdding(false);
-    if (error || data?.error) {
-      setAddError(data?.error ?? error?.message ?? 'Something went wrong.');
+    if (error) {
+      setAddError(error);
       return;
     }
-    setCreatedCreds({ email: data.email, temp_password: data.temp_password });
+    setCreated({ email: data.email, temp_password: data.temp_password });
     setAddForm(ADD_FORM_EMPTY);
     revalidator.revalidate();
   };
 
   const closeAdd = () => {
     setShowAdd(false);
-    setCreatedCreds(null);
+    setCreated(null);
     setAddError(null);
   };
 
   // Edit member
   const [editing, setEditing] = useState<Profile | null>(null);
-  const [editForm, setEditForm] = useState({ full_name: '', title: '', role: 'member' as 'member' | 'executive', phone: '' });
+  const [editForm, setEditForm] = useState({ full_name: '', title: '', role: 'member' as Role, phone: '' });
   const [newPassword, setNewPassword] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [passwordChanged, setPasswordChanged] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  const isOwn = (m: Profile | null) => m?.id === profile?.id;
 
   const openEdit = (m: Profile) => {
     setEditing(m);
@@ -80,9 +109,7 @@ export default function PortalMembers() {
     setEditError(null);
   };
 
-  const isOwnCard = (m: Profile) => m.id === profile?.id;
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!editing) return;
     if (newPassword && newPassword.length < 8) {
@@ -91,7 +118,7 @@ export default function PortalMembers() {
     }
     setEditSaving(true);
     setEditError(null);
-    const payload: Record<string, any> = { full_name: editForm.full_name, phone: editForm.phone || null };
+    const payload: Partial<Profile> = { full_name: editForm.full_name, phone: editForm.phone || null };
     if (isExecutive) {
       payload.title = editForm.title;
       payload.role = editForm.role;
@@ -102,7 +129,8 @@ export default function PortalMembers() {
       setEditError(error.message);
       return;
     }
-    if (isOwnCard(editing) && newPassword) {
+    if (isOwn(editing)) await refreshProfile();
+    if (isOwn(editing) && newPassword) {
       const { error: pwError } = await supabase.auth.updateUser({ password: newPassword });
       setEditSaving(false);
       if (pwError) {
@@ -116,198 +144,232 @@ export default function PortalMembers() {
     }
     setEditSaving(false);
     setEditing(null);
+    toast.success('Profile saved');
     revalidator.revalidate();
   };
 
   const handleRemove = async () => {
     if (!editing) return;
     setEditSaving(true);
-    const { data, error } = await supabase.functions.invoke('admin-manage-member', {
-      body: { action: 'remove', id: editing.id },
-    });
+    const { error } = await manageMember({ action: 'remove', id: editing.id });
     setEditSaving(false);
-    if (error || data?.error) {
-      setEditError(data?.error ?? error?.message ?? 'Could not remove member.');
+    if (error) {
+      toast.error(error);
       return;
     }
+    toast.success(`${editing.full_name} was removed`);
+    setRemoving(false);
     setEditing(null);
     revalidator.revalidate();
   };
 
+  const executives = members.filter((m) => m.role === 'executive').length;
+
   return (
     <>
-      <div>
-        <PageHeader
-          title="Members Directory"
-          subtitle="View and connect with all HKES members"
-          action={isExecutive ? (
-            <motion.button whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} onClick={() => setShowAdd(true)}
-              className="bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white px-6 py-3 rounded-lg shadow-md flex items-center justify-center gap-2 w-full sm:w-auto">
-              <Plus size={20} /> Add Member
-            </motion.button>
-          ) : undefined}
-        />
+      <PageHeader
+        zh="會員"
+        title="Members"
+        subtitle="Everyone with a portal account, from the E-Board to general members."
+        action={
+          isExecutive ? (
+            <SiteButton type="button" size="sm" onClick={() => setShowAdd(true)}>
+              <Plus size={16} aria-hidden="true" />
+              Add member
+            </SiteButton>
+          ) : undefined
+        }
+      />
 
-        <Reveal className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-white/10 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#555555]" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search members..."
-                className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fa4e5b]"
-              />
-            </div>
-            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#fa4e5b]">
-              {titles.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-        </Reveal>
-
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-          initial={shouldReduceMotion ? undefined : 'hidden'}
-          animate={shouldReduceMotion ? undefined : 'visible'}
-          variants={staggerContainer}
-        >
-          {filteredMembers.map((member) => (
-            <motion.div key={member.id} variants={fadeUp} transition={{ duration: 0.4, ease: 'easeOut' }} whileHover={{ y: -4 }}
-              className="relative bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-gray-100 dark:border-white/10">
-              {(isExecutive || isOwnCard(member)) && (
-                <button onClick={() => openEdit(member)} className="absolute top-4 right-4 text-gray-400 hover:text-[#fa4e5b]">
-                  <Pencil size={16} />
-                </button>
-              )}
-              <div className="flex flex-col items-center text-center">
-                <div className={`w-20 h-20 ${getAvatarColor(member.title)} rounded-full flex items-center justify-center text-white text-2xl mb-4 shadow-md`}>
-                  {initials(member.full_name)}
-                </div>
-                <h3 className="text-xl mb-2">{member.full_name}</h3>
-                <span className={`px-3 py-1 rounded-full text-xs mb-3 ${getRoleBadgeColor(member.title)}`}>{member.title}</span>
-                <p className="text-sm text-[#555555] dark:text-gray-400 mb-1">{member.email}</p>
-                <p className="text-xs text-[#555555] dark:text-gray-400">Joined {member.joined_date}</p>
-                <div className="flex gap-2 mt-4 w-full">
-                  <a href={`mailto:${member.email}`} className="flex-1 bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white px-4 py-2 rounded-lg hover:shadow-md transition-shadow text-sm text-center">
-                    Email
-                  </a>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {filteredMembers.length === 0 && (
-          <div className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-12 shadow-sm border border-gray-100 dark:border-white/10 text-center">
-            <p className="text-[#555555] dark:text-gray-400">No members found matching your search.</p>
-          </div>
-        )}
-
-        <Reveal className="mt-8 bg-gradient-to-r from-[#DE2910] to-[#FF6B6B] rounded-2xl p-6 text-white">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            <div><p className="text-3xl mb-1">{members.length}</p><p className="text-white/90 text-sm">Total Members</p></div>
-            <div><p className="text-3xl mb-1">{members.filter((m) => m.role === 'executive').length}</p><p className="text-white/90 text-sm">E-Board Members</p></div>
-            <div><p className="text-3xl mb-1">{new Set(members.map((m) => m.title)).size}</p><p className="text-white/90 text-sm">Distinct Roles</p></div>
-            <div><p className="text-3xl mb-1">{members.filter((m) => m.role === 'member').length}</p><p className="text-white/90 text-sm">General Members</p></div>
-          </div>
-        </Reveal>
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatTile value={members.length} label="Accounts" />
+        <StatTile value={executives} label="E-Board" />
+        <StatTile value={members.length - executives} label="General members" />
+        <StatTile value={titles.length} label="Roles" />
       </div>
 
-      <Modal open={showAdd} onOpenChange={closeAdd} title="Add Member">
-        {createdCreds ? (
-          <div className="space-y-4">
-            <p className="text-sm text-[#555555] dark:text-gray-400">Account created. Share these credentials with the new member — this password won't be shown again.</p>
-            <div className="bg-[#FFF8F6] dark:bg-white/5 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between items-center gap-2"><span className="text-sm">Email</span><code className="text-sm">{createdCreds.email}</code></div>
-              <div className="flex justify-between items-center gap-2">
-                <span className="text-sm">Temp Password</span>
-                <div className="flex items-center gap-2">
-                  <code className="text-sm">{createdCreds.temp_password}</code>
-                  <button type="button" onClick={() => navigator.clipboard.writeText(createdCreds.temp_password)} className="text-[#fa4e5b]"><Copy size={14} /></button>
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row">
+        <label className="relative flex-1">
+          <span className="sr-only">Search members</span>
+          <Search size={18} aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-hk-ink-soft" />
+          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or email" className={`${INPUT} pl-10`} />
+        </label>
+        <label className="sm:w-60">
+          <span className="sr-only">Filter by role</span>
+          <select value={titleFilter} onChange={(e) => setTitleFilter(e.target.value)} className={INPUT}>
+            <option value="All">All roles</option>
+            {titles.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {shown.length === 0 ? (
+        <EmptyState>No members match that search.</EmptyState>
+      ) : (
+        <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {shown.map((member) => (
+            <li key={member.id} className="flex flex-col overflow-hidden rounded-[22px] border border-hk-line bg-hk-card shadow-[0_18px_34px_-28px_rgba(30,23,20,0.5)]">
+              <div className={`flex items-center justify-between px-5 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white ${member.role === 'executive' ? 'bg-hk-red' : 'bg-hk-red-deep'}`}>
+                <span>
+                  HKES · {member.role === 'executive' ? 'E-Board' : 'Member'}
+                  {isOwn(member) ? ' · You' : ''}
+                </span>
+                {(isExecutive || isOwn(member)) && (
+                  <button
+                    type="button"
+                    onClick={() => openEdit(member)}
+                    aria-label={`Edit ${member.full_name}`}
+                    className="-mr-2 grid h-7 w-7 place-items-center rounded-full hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-white"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-1 items-start gap-4 p-5">
+                {member.avatar_url ? (
+                  <img src={member.avatar_url} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover" />
+                ) : (
+                  <span aria-hidden="true" className="grid h-16 w-16 shrink-0 place-items-center rounded-full border-2 border-dashed border-hk-red/50 font-display text-xl text-hk-red">
+                    {initials(member.full_name)}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-semibold leading-tight text-hk-ink">{member.full_name}</p>
+                  <p className="mt-0.5 truncate text-sm font-semibold text-hk-red">{member.title}</p>
+                  <p className="mt-3 flex items-center gap-2 text-sm">
+                    <Mail size={14} aria-hidden="true" className="shrink-0 text-hk-ink-soft" />
+                    <a href={`mailto:${member.email}`} className="truncate text-hk-ink hover:text-hk-red hover:underline">
+                      {member.email}
+                    </a>
+                  </p>
+                  {member.phone && (
+                    <p className="mt-1 flex items-center gap-2 text-sm">
+                      <Phone size={14} aria-hidden="true" className="shrink-0 text-hk-ink-soft" />
+                      <a href={`tel:${member.phone}`} className="truncate text-hk-ink hover:text-hk-red hover:underline">
+                        {member.phone}
+                      </a>
+                    </p>
+                  )}
+                  <p className="mt-3 text-xs text-hk-ink-soft">Joined {member.joined_date ? formatDate(member.joined_date.slice(0, 10)) : formatTimestamp(member.created_at)}</p>
                 </div>
               </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Modal
+        open={showAdd}
+        onOpenChange={(open) => !open && closeAdd()}
+        title={created ? 'Account created' : 'Add member'}
+        description={created ? "Share these with the new member. The password won't be shown again." : 'They will get a temporary password to sign in with.'}
+      >
+        {created ? (
+          <div className="space-y-6">
+            <div className="divide-y divide-hk-line rounded-xl border-2 border-hk-line px-4">
+              <CopyValue label="Email" value={created.email} />
+              <CopyValue label="Temp password" value={created.temp_password} />
             </div>
-            <button onClick={closeAdd} className="w-full bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white px-4 py-3 rounded-lg">Done</button>
+            <SiteButton type="button" onClick={closeAdd} className="w-full">
+              Done
+            </SiteButton>
           </div>
         ) : (
           <form onSubmit={handleAdd} className="space-y-4">
-            <div>
-              <label className="block mb-1 text-sm">Full Name</label>
-              <input required value={addForm.full_name} onChange={(e) => setAddForm({ ...addForm, full_name: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg" />
+            <Field label="Full name">
+              <input required value={addForm.full_name} onChange={(e) => setAddForm({ ...addForm, full_name: e.target.value })} className={INPUT} />
+            </Field>
+            <Field label="Email">
+              <input required type="email" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} className={INPUT} />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Title or position">
+                <input required value={addForm.title} onChange={(e) => setAddForm({ ...addForm, title: e.target.value })} className={INPUT} placeholder="e.g. Publicity Chair" />
+              </Field>
+              <Field label="Account type">
+                <select value={addForm.role} onChange={(e) => setAddForm({ ...addForm, role: e.target.value as Role })} className={INPUT}>
+                  <option value="member">Member</option>
+                  <option value="executive">Executive</option>
+                </select>
+              </Field>
             </div>
-            <div>
-              <label className="block mb-1 text-sm">Email</label>
-              <input required type="email" value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg" />
-            </div>
-            <div>
-              <label className="block mb-1 text-sm">Title / Position</label>
-              <input required value={addForm.title} onChange={(e) => setAddForm({ ...addForm, title: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg" placeholder="e.g. Publicity Chair" />
-            </div>
-            <div>
-              <label className="block mb-1 text-sm">Account Type</label>
-              <select value={addForm.role} onChange={(e) => setAddForm({ ...addForm, role: e.target.value as 'member' | 'executive' })} className="w-full px-3 py-2 border border-border rounded-lg">
-                <option value="member">Member</option>
-                <option value="executive">Executive</option>
-              </select>
-            </div>
-            {addError && <p className="text-sm text-red-600">{addError}</p>}
-            <button type="submit" disabled={adding} className="w-full bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white px-4 py-3 rounded-lg disabled:opacity-60">
-              {adding ? 'Creating…' : 'Create Account'}
-            </button>
+            {addError && <FormError>{addError}</FormError>}
+            <SiteButton type="submit" disabled={adding} className="w-full">
+              {adding ? 'Creating…' : 'Create account'}
+            </SiteButton>
           </form>
         )}
       </Modal>
 
-      <Modal open={!!editing} onOpenChange={(o) => !o && setEditing(null)} title={isOwnCard(editing ?? ({} as Profile)) ? 'Edit My Profile' : `Edit ${editing?.full_name ?? ''}`}>
+      <Modal open={editing !== null && !removing} onOpenChange={(open) => !open && setEditing(null)} title={isOwn(editing) ? 'Edit my profile' : `Edit ${editing?.full_name ?? ''}`}>
         <form onSubmit={handleEditSubmit} className="space-y-4">
-          <div>
-            <label className="block mb-1 text-sm">Full Name</label>
-            <input required value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg" />
-          </div>
-          <div>
-            <label className="block mb-1 text-sm">Phone</label>
-            <input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg" />
-          </div>
+          <Field label="Full name">
+            <input required value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} className={INPUT} />
+          </Field>
+          <Field label="Phone" hint="Optional">
+            <input type="tel" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} className={INPUT} />
+          </Field>
           {isExecutive && (
-            <>
-              <div>
-                <label className="block mb-1 text-sm">Title / Position</label>
-                <input required value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} className="w-full px-3 py-2 border border-border rounded-lg" />
-              </div>
-              <div>
-                <label className="block mb-1 text-sm">Account Type</label>
-                <select value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value as 'member' | 'executive' })} className="w-full px-3 py-2 border border-border rounded-lg">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Title or position">
+                <input required value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} className={INPUT} />
+              </Field>
+              <Field label="Account type">
+                <select value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value as Role })} className={INPUT}>
                   <option value="member">Member</option>
                   <option value="executive">Executive</option>
                 </select>
-              </div>
-            </>
-          )}
-          {editing && isOwnCard(editing) && (
-            <div>
-              <label className="block mb-1 text-sm">New Password (leave blank to keep current)</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => { setNewPassword(e.target.value); setPasswordChanged(false); }}
-                className="w-full px-3 py-2 border border-border rounded-lg"
-                placeholder="At least 8 characters"
-              />
-              {passwordChanged && <p className="text-sm text-green-600 mt-1">Password updated ✓</p>}
+              </Field>
             </div>
           )}
-          {editError && <p className="text-sm text-red-600">{editError}</p>}
-          <button type="submit" disabled={editSaving} className="w-full bg-gradient-to-r from-[#fa4e5b] to-[#ff7a65] text-white px-4 py-3 rounded-lg disabled:opacity-60">
-            {editSaving ? 'Saving…' : 'Save Changes'}
-          </button>
-          {isExecutive && editing && !isOwnCard(editing) && (
-            <button type="button" onClick={handleRemove} disabled={editSaving} className="w-full border border-red-300 text-red-600 px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10">
-              Remove Member
+          {isOwn(editing) && (
+            <Field label="New password" hint="Leave blank to keep your current password.">
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  setPasswordChanged(false);
+                }}
+                className={INPUT}
+                placeholder="At least 8 characters"
+              />
+            </Field>
+          )}
+          {passwordChanged && <FormSuccess>Password updated.</FormSuccess>}
+          {editError && <FormError>{editError}</FormError>}
+          <SiteButton type="submit" disabled={editSaving} className="w-full">
+            {editSaving ? 'Saving…' : 'Save changes'}
+          </SiteButton>
+          {isExecutive && editing && !isOwn(editing) && (
+            <button
+              type="button"
+              onClick={() => setRemoving(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-hk-red/40 px-6 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-hk-red transition-colors hover:bg-hk-red/10"
+            >
+              <UserMinus size={16} aria-hidden="true" />
+              Remove member
             </button>
           )}
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={removing}
+        onOpenChange={(open) => !open && setRemoving(false)}
+        title="Remove member?"
+        body={
+          <>
+            <span className="font-semibold text-hk-ink">{editing?.full_name}</span> will lose access to the portal and their account will be deleted. This can't be undone.
+          </>
+        }
+        confirmLabel="Remove"
+        onConfirm={handleRemove}
+        busy={editSaving}
+      />
     </>
   );
 }
