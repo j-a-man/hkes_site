@@ -1,29 +1,46 @@
 import { useLoaderData, useRouteLoaderData } from 'react-router';
-import HeroSection from '../components/home/HeroSection';
-import StatsSection from '../components/home/StatsSection';
-import EboardSpotlight from '../components/home/EboardSpotlight';
-import GalleryPreview from '../components/home/GalleryPreview';
-import GetInvolvedSection from '../components/home/GetInvolvedSection';
-import type { GalleryPhotoRow } from '../lib/queries';
-import type { Profile } from '../lib/auth';
+import HomeHero from '../components/home/HomeHero';
+import NextStops from '../components/home/NextStops';
+import StatsBand from '../components/home/StatsBand';
+import Scrapbook from '../components/home/Scrapbook';
+import JoinSection from '../components/home/JoinSection';
+import Marquee from '../components/site/Marquee';
+import type { EventRow, GalleryPhotoRow } from '../lib/queries';
+import { sectionContent } from '../lib/siteContentManifest';
+import { safeUrl, splitEvents, type ContentMap } from '../lib/site';
 
 interface LoaderData {
-  content: Record<string, Record<string, any>>;
-  eboard: Pick<Profile, 'id' | 'full_name' | 'title' | 'avatar_url'>[];
+  content: ContentMap;
+  events: EventRow[];
   photos: GalleryPhotoRow[];
 }
 
 export default function Home() {
-  const { content, eboard, photos } = useLoaderData() as LoaderData;
-  const root = useRouteLoaderData('root') as { globalContent: Record<string, Record<string, any>> } | undefined;
-  const social = root?.globalContent?.social ?? {};
+  const { content, events, photos } = useLoaderData() as LoaderData;
+  const root = useRouteLoaderData('root') as { globalContent: ContentMap; contactContent: ContentMap };
+  const instagramUrl = safeUrl(root.globalContent.social?.instagram_url);
+  const instagramHandle = sectionContent('contact', 'info', root.contactContent.info).instagram_handle;
+
+  const hero = sectionContent('home', 'hero', content.hero);
+  const marquee = sectionContent('home', 'marquee', content.marquee);
+  const { upcoming, past } = splitEvents(events);
+
   return (
-    <div className="bg-white dark:bg-[#1a1b1e] overflow-hidden font-['Poppins']">
-      <HeroSection content={content.hero ?? {}} social={social} />
-      <StatsSection content={content.stats ?? {}} />
-      <EboardSpotlight content={content.eboard ?? {}} eboard={eboard} />
-      <GalleryPreview content={content.gallery_preview ?? {}} photos={photos} />
-      <GetInvolvedSection content={content.get_involved ?? {}} social={social} />
-    </div>
+    <>
+      <HomeHero hero={hero} nextEvent={upcoming[0]} instagramHandle={instagramHandle} />
+      <div className="relative z-10 -mx-[5vw] -my-9 -rotate-2 bg-hk-red-deep text-white shadow-[0_14px_28px_-16px_rgba(30,23,20,0.7)]">
+        <Marquee items={(marquee.items as { text: string }[]).map((item) => item.text).filter(Boolean)} />
+      </div>
+      <NextStops
+        content={sectionContent('home', 'events_preview', content.events_preview)}
+        upcoming={upcoming}
+        recent={past}
+        instagramUrl={instagramUrl}
+        instagramHandle={instagramHandle}
+      />
+      <StatsBand items={sectionContent('home', 'stats', content.stats).items} />
+      <Scrapbook content={sectionContent('home', 'gallery_preview', content.gallery_preview)} photos={photos} />
+      <JoinSection content={sectionContent('home', 'get_involved', content.get_involved)} instagramUrl={instagramUrl} />
+    </>
   );
 }

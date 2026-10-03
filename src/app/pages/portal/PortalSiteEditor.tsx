@@ -41,13 +41,26 @@ function ImageField({ value, onChange }: { value: string; onChange: (v: string) 
 }
 
 function SimpleField({ field, value, onChange }: { field: FieldDef; value: any; onChange: (v: any) => void }) {
+  const placeholder = typeof field.default === 'string' ? field.default : undefined;
   if (field.type === 'textarea') {
-    return <textarea value={value ?? ''} onChange={(e) => onChange(e.target.value)} rows={3} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />;
+    return <textarea value={value ?? ''} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} rows={3} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />;
   }
   if (field.type === 'image') {
     return <ImageField value={value ?? ''} onChange={onChange} />;
   }
-  return <input value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />;
+  return <input value={value ?? ''} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />;
+}
+
+// Empty list fields start from their manifest default, so editors tweak the
+// items the public site is already showing instead of an empty list.
+function withListDefaults(fields: FieldDef[], initial: Record<string, any>) {
+  const values = { ...initial };
+  for (const field of fields) {
+    if (field.type === 'list' && Array.isArray(field.default) && !(values[field.key]?.length)) {
+      values[field.key] = field.default;
+    }
+  }
+  return values;
 }
 
 function ListField({ field, items, onChange }: { field: FieldDef; items: any[]; onChange: (items: any[]) => void }) {
@@ -86,7 +99,7 @@ function ListField({ field, items, onChange }: { field: FieldDef; items: any[]; 
 function SectionEditor({ pageKey, sectionKey, label, fields, initial, onSaved }: {
   pageKey: string; sectionKey: string; label: string; fields: FieldDef[]; initial: Record<string, any>; onSaved: () => void;
 }) {
-  const [values, setValues] = useState<Record<string, any>>(initial);
+  const [values, setValues] = useState<Record<string, any>>(() => withListDefaults(fields, initial));
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
 

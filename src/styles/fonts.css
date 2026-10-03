@@ -1,6 +1,11 @@
-@import '@fontsource/poppins/300.css';
 @import '@fontsource/poppins/400.css';
 @import '@fontsource/poppins/500.css';
 @import '@fontsource/poppins/600.css';
 @import '@fontsource/poppins/700.css';
-@import '@fontsource/poppins/900.css';
+
+/* Public site display faces (Latin subsets only). The Chinese calligraphy face
+   (LXGW WenKai TC) is served from Google Fonts in index.html, because CJK fonts
+   ship as ~100 unicode-range slices that would bloat the bundle. */
+@import '@fontsource/dela-gothic-one/latin-400.css';
+@import '@fontsource/permanent-marker/latin-400.css';
+@import '@fontsource-variable/caveat/wght.css';

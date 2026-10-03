@@ -1,21 +1,26 @@
-import { Link } from 'react-router';
+import { PlacardFrame, PlacardLabel } from '../components/site/Placard';
+import SiteButton from '../components/site/SiteButton';
 
+// Also rendered outside the site layout (e.g. unknown /portal/* paths), so it
+// brings its own paper background.
 export default function NotFound() {
   return (
-    <div className="bg-white dark:bg-[#1a1b1e] min-h-[70vh] flex items-center justify-center px-4">
-      <div className="text-center max-w-md">
-        <p className="text-[#fa4e5b] font-bold tracking-widest text-sm mb-4">404</p>
-        <h1 className="text-3xl mb-4">Page Not Found</h1>
-        <p className="text-[#555555] dark:text-gray-400 mb-8 leading-relaxed">
-          The page you're looking for doesn't exist or may have moved.
-        </p>
-        <Link
-          to="/"
-          className="inline-block bg-gradient-to-r from-[#ffbba1] to-[#fa4e5b] text-white font-bold tracking-wider text-sm px-8 py-4 rounded-full shadow-[0_8px_20px_rgba(250,78,91,0.4)] hover:shadow-[0_12px_25px_rgba(250,78,91,0.5)] transition-all hover:-translate-y-1"
-        >
-          BACK HOME
-        </Link>
+    <section className="flex min-h-[70vh] items-center justify-center bg-hk-paper px-5 py-24 font-['Poppins'] text-hk-ink">
+      <div className="w-full max-w-md -rotate-1">
+        <PlacardFrame>
+          <PlacardLabel zh="冇呢個站" en="404 · No such stop" />
+          <h1 className="mt-4 font-marker text-[2.75rem] leading-none text-hk-red">Wrong stop!</h1>
+          <p className="mt-4 leading-relaxed text-hk-ink-soft">This page doesn't exist or may have moved. Hop back on and we'll take you somewhere real.</p>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <SiteButton to="/" size="sm">
+              Back home
+            </SiteButton>
+            <SiteButton to="/events" variant="outline-ink" size="sm">
+              See events
+            </SiteButton>
+          </div>
+        </PlacardFrame>
       </div>
-    </div>
+    </section>
   );
 }

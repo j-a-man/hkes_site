@@ -107,6 +107,34 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
+/* Public site palette and type: red ink on warm paper, taken from HKES flyers. */
+@theme {
+  --color-hk-red: #d7282f;
+  --color-hk-red-dark: #b71f26;
+  --color-hk-red-deep: #8c1219;
+  --color-hk-blush: #fbe7e3;
+  --color-hk-paper: #fffbf5;
+  --color-hk-ink: #1e1714;
+  --color-hk-ink-soft: #6b5e57;
+  --color-hk-line: #e8ddd3;
+
+  --font-display: 'Dela Gothic One', 'Poppins', sans-serif;
+  --font-marker: 'Permanent Marker', 'Poppins', cursive;
+  --font-hand: 'Caveat Variable', cursive;
+  --font-zh: 'LXGW WenKai TC', 'PingFang HK', 'Microsoft JhengHei', 'Noto Sans TC', serif;
+
+  --animate-marquee: marquee var(--marquee-duration, 40s) linear infinite;
+
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -207,5 +235,32 @@
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+}
+
+/* Offset "print" shadow used on marker and display type, scaled to the font size. */
+@utility text-hard-shadow {
+  text-shadow: 0.055em 0.055em 0 var(--hard-shadow, var(--color-hk-red-deep));
+}
+
+/* Printed-paper grain. Put on a positioned element; the speckle sits above its
+   background and below its content. */
+@utility paper-grain {
+  isolation: isolate;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: var(--grain-opacity, 0.07);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation-play-state: paused;
   }
 }

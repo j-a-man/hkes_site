@@ -1,12 +1,15 @@
 // Defines every editable field on the public site, grouped by page/section.
 // The Site Editor renders forms straight from this manifest; public pages use
 // the same keys to read values out of `site_content`/collection tables.
+// A field's `default` is what the public site shows while the field is empty,
+// and the editor shows it as the input placeholder.
 
 export interface FieldDef {
   key: string;
   label: string;
   type: 'text' | 'textarea' | 'image' | 'list';
   itemFields?: FieldDef[]; // only when type === 'list'
+  default?: string | Record<string, string>[];
 }
 
 export interface SectionDef {
@@ -32,19 +35,57 @@ export const SITE_PAGES: PageDef[] = [
         key: 'hero',
         label: 'Hero',
         fields: [
-          { key: 'eyebrow', label: 'Eyebrow text', type: 'text' },
-          { key: 'heading_line1', label: 'Heading (line 1)', type: 'text' },
-          { key: 'heading_line2', label: 'Heading (line 2, outlined)', type: 'text' },
-          { key: 'body', label: 'Body paragraph', type: 'textarea' },
-          { key: 'primary_button_text', label: 'Primary button text', type: 'text' },
-          { key: 'secondary_button_text', label: 'Secondary button text', type: 'text' },
-          { key: 'image_skyline_url', label: 'Skyline image', type: 'image' },
-          { key: 'image_streets_url', label: 'Streets image', type: 'image' },
-          { key: 'image_dimsum_url', label: 'Dim sum image', type: 'image' },
-          { key: 'caption_big_little', label: 'Skyline caption', type: 'text' },
-          { key: 'caption_culture', label: 'Streets caption', type: 'text' },
-          { key: 'caption_people', label: 'Dim sum caption', type: 'text' },
-          { key: 'watermark_logo_url', label: 'Watermark logo image', type: 'image' },
+          { key: 'eyebrow', label: 'Eyebrow text', type: 'text', default: 'Binghamton University' },
+          { key: 'heading_line1', label: 'Heading (line 1)', type: 'text', default: 'Where Binghamton meets' },
+          { key: 'heading_line2', label: 'Heading (line 2, hand-lettered)', type: 'text', default: 'Hong Kong' },
+          {
+            key: 'body',
+            label: 'Body paragraph',
+            type: 'textarea',
+            default:
+              'HKES is a cultural and social student organization celebrating Hong Kong heritage, building community, and connecting students across cultures at Binghamton University.',
+          },
+          { key: 'primary_button_text', label: 'Primary button text', type: 'text', default: 'Explore events' },
+          { key: 'secondary_button_text', label: 'Secondary button text', type: 'text', default: 'About us' },
+          // Key name predates the redesign; this is the photo on the hero poster.
+          { key: 'image_skyline_url', label: 'Hero photo', type: 'image', default: '/IMG_0357.JPG' },
+          { key: 'caption_big_little', label: 'Hero photo caption', type: 'text', default: 'the HKES fam' },
+        ],
+      },
+      {
+        key: 'marquee',
+        label: 'Scrolling banner',
+        fields: [
+          {
+            key: 'items',
+            label: 'Banner words',
+            type: 'list',
+            itemFields: [{ key: 'text', label: 'Text', type: 'text' }],
+            default: [
+              { text: '蛋撻 Egg Tarts' },
+              { text: '絲襪奶茶 Milk Tea' },
+              { text: '點心 Dim Sum' },
+              { text: '麻雀 Mahjong' },
+              { text: '菠蘿包 Pineapple Buns' },
+              { text: '廣東話 Cantonese' },
+              { text: '中秋節 Mid-Autumn' },
+              { text: '農曆新年 Lunar New Year' },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'events_preview',
+        label: 'Upcoming events',
+        fields: [
+          { key: 'heading', label: 'Heading', type: 'text', default: 'Next stops' },
+          {
+            key: 'subheading',
+            label: 'Subheading',
+            type: 'textarea',
+            default: "Pull up, bring a friend. Everyone's welcome at HKES events, no membership needed.",
+          },
+          { key: 'button_text', label: 'Button text', type: 'text', default: 'All events' },
         ],
       },
       {
@@ -59,35 +100,41 @@ export const SITE_PAGES: PageDef[] = [
               { key: 'value', label: 'Value', type: 'text' },
               { key: 'label', label: 'Label', type: 'text' },
             ],
+            default: [
+              { value: '500', label: 'Members' },
+              { value: '20+', label: 'Events a year' },
+              { value: '$10K+', label: 'Raised' },
+            ],
           },
-        ],
-      },
-      {
-        key: 'eboard',
-        label: 'E-Board intro',
-        fields: [
-          { key: 'eyebrow', label: 'Eyebrow text', type: 'text' },
-          { key: 'heading', label: 'Heading', type: 'text' },
-          { key: 'subheading', label: 'Subheading', type: 'textarea' },
         ],
       },
       {
         key: 'gallery_preview',
         label: 'Gallery preview',
         fields: [
-          { key: 'eyebrow', label: 'Eyebrow text', type: 'text' },
-          { key: 'heading', label: 'Heading', type: 'text' },
-          { key: 'subheading', label: 'Subheading', type: 'textarea' },
-          { key: 'button_text', label: 'Button text', type: 'text' },
+          { key: 'eyebrow', label: 'Eyebrow text', type: 'text', default: 'Moments together' },
+          { key: 'heading', label: 'Heading', type: 'text', default: 'From the camera roll' },
+          {
+            key: 'subheading',
+            label: 'Subheading',
+            type: 'textarea',
+            default: 'A peek at the galas, festivals, and hangouts that make HKES what it is.',
+          },
+          { key: 'button_text', label: 'Button text', type: 'text', default: 'View the gallery' },
         ],
       },
       {
         key: 'get_involved',
         label: 'Get involved',
         fields: [
-          { key: 'eyebrow', label: 'Eyebrow text', type: 'text' },
-          { key: 'heading', label: 'Heading', type: 'text' },
-          { key: 'subheading', label: 'Subheading', type: 'textarea' },
+          { key: 'eyebrow', label: 'Eyebrow text', type: 'text', default: 'Join us' },
+          { key: 'heading', label: 'Heading', type: 'text', default: 'How to get involved' },
+          {
+            key: 'subheading',
+            label: 'Subheading',
+            type: 'textarea',
+            default: "Everyone is welcome. Here's the easiest way to get plugged into HKES.",
+          },
           {
             key: 'steps',
             label: 'Steps',
@@ -96,11 +143,21 @@ export const SITE_PAGES: PageDef[] = [
               { key: 'title', label: 'Title', type: 'text' },
               { key: 'description', label: 'Description', type: 'textarea' },
             ],
+            default: [
+              { title: 'Follow along', description: 'Follow us on Instagram and TikTok to catch every new flyer and announcement.' },
+              { title: 'Come to an event', description: 'No membership required. Come celebrate, eat, and meet the community.' },
+              { title: 'Get involved', description: 'Ready for more? Reach out to volunteer, join the team, or run for E-Board.' },
+            ],
           },
-          { key: 'cta_heading', label: 'CTA heading', type: 'text' },
-          { key: 'cta_body', label: 'CTA body', type: 'textarea' },
-          { key: 'instagram_button_text', label: 'Instagram button text', type: 'text' },
-          { key: 'contact_button_text', label: 'Contact button text', type: 'text' },
+          { key: 'cta_heading', label: 'CTA heading', type: 'text', default: 'Ready to say hi?' },
+          {
+            key: 'cta_body',
+            label: 'CTA body',
+            type: 'textarea',
+            default: "Come to our next event or drop us a message. We'd love to meet you.",
+          },
+          { key: 'instagram_button_text', label: 'Instagram button text', type: 'text', default: 'Follow on Instagram' },
+          { key: 'contact_button_text', label: 'Contact button text', type: 'text', default: 'Contact us' },
         ],
       },
     ],
@@ -109,7 +166,21 @@ export const SITE_PAGES: PageDef[] = [
     key: 'events',
     label: 'Events',
     path: '/events',
-    sections: [{ key: 'hero', label: 'Hero', fields: [{ key: 'heading', label: 'Heading', type: 'text' }] }],
+    sections: [
+      {
+        key: 'hero',
+        label: 'Hero',
+        fields: [
+          { key: 'heading', label: 'Heading', type: 'text', default: 'Events' },
+          {
+            key: 'subheading',
+            label: 'Subheading',
+            type: 'textarea',
+            default: "Festivals, food, and late-night hangouts. Here's where HKES is headed next.",
+          },
+        ],
+      },
+    ],
   },
   {
     key: 'fundraisers',
@@ -120,15 +191,28 @@ export const SITE_PAGES: PageDef[] = [
         key: 'hero',
         label: 'Hero',
         fields: [
-          { key: 'heading', label: 'Heading', type: 'text' },
-          { key: 'subheading', label: 'Subheading', type: 'textarea' },
+          { key: 'heading', label: 'Heading', type: 'text', default: 'Support HKES' },
+          {
+            key: 'subheading',
+            label: 'Subheading',
+            type: 'textarea',
+            default: 'Every dollar keeps our cultural events, programming, and member resources going.',
+          },
+        ],
+      },
+      {
+        key: 'support',
+        label: 'Support button',
+        fields: [
+          { key: 'button_text', label: 'Button text', type: 'text', default: 'Ask how to give' },
+          { key: 'button_url', label: 'Button link (leave empty to link to the Contact page)', type: 'text', default: '' },
         ],
       },
       {
         key: 'why_we_fundraise',
         label: 'Why we fundraise',
         fields: [
-          { key: 'heading', label: 'Heading', type: 'text' },
+          { key: 'heading', label: 'Heading', type: 'text', default: 'Why we fundraise' },
           {
             key: 'items',
             label: 'Reasons',
@@ -146,7 +230,21 @@ export const SITE_PAGES: PageDef[] = [
     key: 'gallery',
     label: 'Gallery',
     path: '/gallery',
-    sections: [{ key: 'hero', label: 'Hero', fields: [{ key: 'heading', label: 'Heading', type: 'text' }] }],
+    sections: [
+      {
+        key: 'hero',
+        label: 'Hero',
+        fields: [
+          { key: 'heading', label: 'Heading', type: 'text', default: 'Memories & recaps' },
+          {
+            key: 'subheading',
+            label: 'Subheading',
+            type: 'textarea',
+            default: 'Galas, festivals, and everything in between, straight from the HKES camera roll.',
+          },
+        ],
+      },
+    ],
   },
   {
     key: 'about',
@@ -157,15 +255,20 @@ export const SITE_PAGES: PageDef[] = [
         key: 'hero',
         label: 'Hero',
         fields: [
-          { key: 'heading', label: 'Heading', type: 'text' },
-          { key: 'subheading', label: 'Subheading', type: 'textarea' },
+          { key: 'heading', label: 'Heading', type: 'text', default: 'About HKES' },
+          {
+            key: 'subheading',
+            label: 'Subheading',
+            type: 'textarea',
+            default: "Binghamton's Hong Kong Exchange Square, celebrating Hong Kong heritage and building community on campus.",
+          },
         ],
       },
       {
         key: 'who_we_are',
         label: 'Who we are',
         fields: [
-          { key: 'heading', label: 'Heading', type: 'text' },
+          { key: 'heading', label: 'Heading', type: 'text', default: 'Who we are' },
           { key: 'body', label: 'Body', type: 'textarea' },
         ],
       },
@@ -173,7 +276,7 @@ export const SITE_PAGES: PageDef[] = [
         key: 'what_we_value',
         label: 'What we value',
         fields: [
-          { key: 'heading', label: 'Heading', type: 'text' },
+          { key: 'heading', label: 'Heading', type: 'text', default: 'What we value' },
           {
             key: 'values',
             label: 'Values',
@@ -186,13 +289,31 @@ export const SITE_PAGES: PageDef[] = [
         ],
       },
       {
+        key: 'team',
+        label: 'E-Board',
+        fields: [
+          { key: 'heading', label: 'Heading', type: 'text', default: 'Meet the E-Board' },
+          {
+            key: 'subheading',
+            label: 'Subheading',
+            type: 'textarea',
+            default: 'The students behind every event, post, and gathering. Say hi at our next event!',
+          },
+        ],
+      },
+      {
         key: 'get_involved',
         label: 'Get involved',
         fields: [
-          { key: 'heading', label: 'Heading', type: 'text' },
-          { key: 'body', label: 'Body', type: 'textarea' },
-          { key: 'explore_button_text', label: 'Explore button text', type: 'text' },
-          { key: 'contact_button_text', label: 'Contact button text', type: 'text' },
+          { key: 'heading', label: 'Heading', type: 'text', default: 'Get involved' },
+          {
+            key: 'body',
+            label: 'Body',
+            type: 'textarea',
+            default: 'Come to an event, follow along on social media, or reach out if you have questions about joining HKES.',
+          },
+          { key: 'explore_button_text', label: 'Explore button text', type: 'text', default: 'Explore events' },
+          { key: 'contact_button_text', label: 'Contact button text', type: 'text', default: 'Contact us' },
         ],
       },
     ],
@@ -206,27 +327,32 @@ export const SITE_PAGES: PageDef[] = [
         key: 'hero',
         label: 'Hero',
         fields: [
-          { key: 'heading', label: 'Heading', type: 'text' },
-          { key: 'subheading', label: 'Subheading', type: 'text' },
+          { key: 'heading', label: 'Heading', type: 'text', default: 'Get in touch' },
+          { key: 'subheading', label: 'Subheading', type: 'text', default: "We'd love to hear from you." },
         ],
       },
       {
         key: 'info',
         label: 'Contact info',
         fields: [
-          { key: 'instagram_handle', label: 'Instagram handle', type: 'text' },
-          { key: 'email', label: 'Email', type: 'text' },
-          { key: 'location_name', label: 'Location name', type: 'text' },
-          { key: 'location_address', label: 'Location address', type: 'text' },
+          { key: 'instagram_handle', label: 'Instagram handle', type: 'text', default: '@binghkes' },
+          { key: 'email', label: 'Email', type: 'text', default: 'hkes@binghamton.edu' },
+          { key: 'location_name', label: 'Location name', type: 'text', default: 'Binghamton University' },
+          { key: 'location_address', label: 'Location address', type: 'text', default: '4400 Vestal Pkwy E, Binghamton, NY 13902' },
         ],
       },
       {
         key: 'cta',
         label: 'Join CTA',
         fields: [
-          { key: 'heading', label: 'Heading', type: 'text' },
-          { key: 'body', label: 'Body', type: 'textarea' },
-          { key: 'button_text', label: 'Button text', type: 'text' },
+          { key: 'heading', label: 'Heading', type: 'text', default: 'Interested in joining?' },
+          {
+            key: 'body',
+            label: 'Body',
+            type: 'textarea',
+            default: 'Applications open each semester for new members and E-Board positions. Follow along for announcements!',
+          },
+          { key: 'button_text', label: 'Button text (links to Instagram)', type: 'text', default: 'Follow for announcements' },
         ],
       },
     ],
@@ -240,8 +366,14 @@ export const SITE_PAGES: PageDef[] = [
         key: 'footer',
         label: 'Footer',
         fields: [
-          { key: 'blurb', label: 'Footer blurb', type: 'textarea' },
-          { key: 'copyright', label: 'Copyright line', type: 'text' },
+          {
+            key: 'blurb',
+            label: 'Footer blurb',
+            type: 'textarea',
+            default:
+              'A cultural and social student organization celebrating Hong Kong heritage, building community, and connecting students across cultures at Binghamton University.',
+          },
+          { key: 'copyright', label: 'Copyright line', type: 'text', default: '© Binghamton Hong Kong Exchange Square' },
         ],
       },
       {
@@ -256,6 +388,23 @@ export const SITE_PAGES: PageDef[] = [
     ],
   },
 ];
+
+export type SectionContent = Record<string, any>;
+
+function isEmpty(value: unknown) {
+  return value == null || (typeof value === 'string' && value.trim() === '') || (Array.isArray(value) && value.length === 0);
+}
+
+// Merges a stored section with its manifest defaults so public pages never
+// render blank holes for fields nobody has filled in yet.
+export function sectionContent(pageKey: string, sectionKey: string, stored: SectionContent | undefined): SectionContent {
+  const section = SITE_PAGES.find((p) => p.key === pageKey)?.sections.find((s) => s.key === sectionKey);
+  const merged: SectionContent = { ...(stored ?? {}) };
+  for (const field of section?.fields ?? []) {
+    if (field.default !== undefined && isEmpty(merged[field.key])) merged[field.key] = field.default;
+  }
+  return merged;
+}
 
 export interface CollectionFieldDef {
   key: string;
@@ -284,7 +433,7 @@ export const SITE_COLLECTIONS: CollectionDef[] = [
       { key: 'location', label: 'Location', type: 'text' },
       { key: 'description', label: 'Description', type: 'textarea' },
       { key: 'image_url', label: 'Image', type: 'image' },
-      { key: 'status', label: 'Status', type: 'select', options: ['upcoming', 'past'] },
+      { key: 'status', label: 'Status (events move to Past automatically once their date passes)', type: 'select', options: ['upcoming', 'past'] },
     ],
   },
   {

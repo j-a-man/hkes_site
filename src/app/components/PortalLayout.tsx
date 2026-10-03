@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
-import { LayoutDashboard, CheckSquare, Image, Send, DollarSign, Users, Megaphone, PenSquare, QrCode, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, Image, Send, DollarSign, Users, Megaphone, PenSquare, QrCode, LogOut, Menu, X, Moon, Sun } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import Logo from './Logo';
@@ -9,11 +9,38 @@ import { useAuth } from '../lib/auth';
 // (e.g. a fresh page load) rather than resetting to the top of the nav list.
 let savedSidebarScrollTop = 0;
 
+const THEME_KEY = 'hkes-portal-theme';
+
+// Dark mode is a portal-only preference; the public site is always light, so
+// the class is removed again when the portal unmounts.
+function usePortalDarkMode() {
+  const [dark, setDark] = useState(() => {
+    try {
+      return localStorage.getItem(THEME_KEY) === 'dark';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+    try {
+      localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
+    } catch {
+      // Storage can be unavailable (private mode); the toggle still works for this visit.
+    }
+    return () => document.documentElement.classList.remove('dark');
+  }, [dark]);
+
+  return [dark, setDark] as const;
+}
+
 export default function PortalLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [darkMode, setDarkMode] = usePortalDarkMode();
   const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -110,7 +137,15 @@ export default function PortalLayout() {
         })}
       </nav>
 
-      <div className="p-6 border-t border-white/10 shrink-0">
+      <div className="p-6 border-t border-white/10 shrink-0 space-y-1">
+        <button
+          type="button"
+          onClick={() => setDarkMode((d) => !d)}
+          className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-white/5 hover:text-white rounded-xl transition-colors font-medium"
+        >
+          {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+          <span>{darkMode ? 'Light mode' : 'Dark mode'}</span>
+        </button>
         <Link
           to="/"
           onClick={handleExit}

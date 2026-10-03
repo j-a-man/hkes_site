@@ -52,18 +52,21 @@ export const router = createBrowserRouter([
     path: "/",
     Component: Layout,
     ErrorBoundary: ErrorBoundary,
-    loader: async () => ({ globalContent: await getSiteContent("global") }),
+    loader: async () => {
+      const [globalContent, contactContent] = await Promise.all([getSiteContent("global"), getSiteContent("contact")]);
+      return { globalContent, contactContent };
+    },
     children: [
       {
         index: true,
         Component: Home,
         loader: async () => {
-          const [content, eboard, photos] = await Promise.all([
+          const [content, events, photos] = await Promise.all([
             getSiteContent("home"),
-            getEboardProfiles(),
+            getEvents(),
             getGalleryPhotos(),
           ]);
-          return { content, eboard, photos: photos.filter((p) => p.featured_on_home) };
+          return { content, events, photos: photos.filter((p) => p.featured_on_home) };
         },
       },
       {
@@ -97,13 +100,13 @@ export const router = createBrowserRouter([
       {
         path: "about",
         Component: About,
-        loader: async () => ({ content: await getSiteContent("about") }),
+        loader: async () => {
+          const [content, eboard] = await Promise.all([getSiteContent("about"), getEboardProfiles()]);
+          return { content, eboard };
+        },
       },
-      {
-        path: "contact",
-        Component: Contact,
-        loader: async () => ({ content: await getSiteContent("contact") }),
-      },
+      // Reads its content from the root loader, which already fetches it for the footer.
+      { path: "contact", Component: Contact },
       { path: "*", Component: NotFound },
     ],
   },

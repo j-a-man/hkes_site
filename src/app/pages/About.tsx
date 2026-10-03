@@ -1,82 +1,113 @@
 import { useLoaderData } from 'react-router';
-import { Link } from 'react-router';
-import { Heart, Users, Sparkles, Globe, type LucideIcon } from 'lucide-react';
+import { Arrow } from '../components/site/Doodles';
+import CtaPoster from '../components/site/CtaPoster';
+import { Tape } from '../components/site/Paper';
+import PosterHero from '../components/site/PosterHero';
+import SectionHeading from '../components/site/SectionHeading';
+import SiteButton from '../components/site/SiteButton';
+import Stamp from '../components/site/Stamp';
 import Reveal from '../components/Reveal';
+import type { Profile } from '../lib/auth';
+import { initials } from '../lib/roleColors';
+import { sectionContent } from '../lib/siteContentManifest';
+import type { ContentMap } from '../lib/site';
 
 interface LoaderData {
-  content: Record<string, Record<string, any>>;
+  content: ContentMap;
+  eboard: Pick<Profile, 'id' | 'full_name' | 'title' | 'avatar_url'>[];
 }
 
-const VALUE_ICONS: LucideIcon[] = [Heart, Users, Globe, Sparkles];
+const CHINESE_NUMERALS = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+const CARD_TILTS = ['-rotate-2', 'rotate-[1.5deg]', '-rotate-1', 'rotate-2'];
 
 export default function About() {
-  const { content } = useLoaderData() as LoaderData;
-  const hero = content.hero ?? {};
-  const whoWeAre = content.who_we_are ?? {};
-  const whatWeValue = content.what_we_value ?? {};
-  const getInvolved = content.get_involved ?? {};
-  const values: { title: string; description: string }[] = whatWeValue.values ?? [];
+  const { content, eboard } = useLoaderData() as LoaderData;
+  const hero = sectionContent('about', 'hero', content.hero);
+  const who = sectionContent('about', 'who_we_are', content.who_we_are);
+  const values = sectionContent('about', 'what_we_value', content.what_we_value);
+  const team = sectionContent('about', 'team', content.team);
+  const getInvolved = sectionContent('about', 'get_involved', content.get_involved);
+  const valueItems: { title: string; description: string }[] = values.values ?? [];
 
   return (
-    <div className="bg-white dark:bg-[#1a1b1e] min-h-screen">
-      <section className="bg-gradient-to-r from-[#DE2910] to-[#FF6B6B] py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl text-white mb-4">{hero.heading}</h1>
-          <p className="text-white/90 max-w-2xl mx-auto">{hero.subheading}</p>
+    <>
+      <PosterHero zh="關於我們" eyebrow="About HKES" title={hero.heading} subtitle={hero.subheading} />
+
+      <section className="bg-hk-paper pb-28 pt-20 md:pt-24">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8">
+          {who.body && (
+            <Reveal className="grid items-center gap-14 lg:grid-cols-12">
+              <div className="relative mx-auto lg:col-span-5">
+                <Stamp size={280} className="-rotate-[8deg] text-hk-red" label="The HKES seal" />
+                <p className="absolute -bottom-8 -right-2 flex items-end gap-1 font-hand text-2xl font-semibold text-hk-ink sm:-right-14">
+                  <Arrow className="mb-2 h-8 w-12 rotate-180 text-hk-ink" />
+                  our seal
+                </p>
+              </div>
+              <div className="lg:col-span-7">
+                <SectionHeading zh="我們是誰" eyebrow="Who we are" title={who.heading} />
+                <p className="mt-8 text-lg leading-relaxed text-hk-ink sm:text-xl sm:leading-relaxed">{who.body}</p>
+              </div>
+            </Reveal>
+          )}
+
+          {valueItems.length > 0 && (
+            <Reveal className="mt-28">
+              <SectionHeading zh="價值" eyebrow="What we're about" title={values.heading} />
+              <ol className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+                {valueItems.map((value, i) => (
+                  <li key={`${value.title}-${i}`} className="border-t-2 border-hk-ink pt-6">
+                    <span lang="zh-HK" aria-hidden="true" className="font-zh text-5xl leading-none text-hk-red">
+                      {CHINESE_NUMERALS[i] ?? i + 1}
+                    </span>
+                    <h3 className="mt-5 font-display text-xl font-normal uppercase leading-tight text-hk-ink">{value.title}</h3>
+                    <p className="mt-3 leading-relaxed text-hk-ink-soft">{value.description}</p>
+                  </li>
+                ))}
+              </ol>
+            </Reveal>
+          )}
+
+          {eboard.length > 0 && (
+            <Reveal className="mt-28">
+              <SectionHeading zh="幹事會" eyebrow="E-Board" title={team.heading} subtitle={team.subheading} />
+              <ul className="mt-14 grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 sm:gap-x-10 lg:grid-cols-4">
+                {eboard.map((member, i) => (
+                  <li key={member.id} className={CARD_TILTS[i % CARD_TILTS.length]}>
+                    <figure className="relative bg-white p-2.5 pb-4 shadow-[0_1px_2px_rgba(30,23,20,0.12),0_18px_32px_-16px_rgba(30,23,20,0.5)] sm:p-3 sm:pb-5">
+                      <Tape className="-top-3.5 left-1/2 -translate-x-1/2 -rotate-3" />
+                      <div className="grid aspect-square place-items-center overflow-hidden bg-hk-red">
+                        {member.avatar_url ? (
+                          <img src={member.avatar_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                        ) : (
+                          <span aria-hidden="true" className="font-display text-5xl text-white sm:text-6xl">
+                            {initials(member.full_name)}
+                          </span>
+                        )}
+                      </div>
+                      <figcaption className="mt-3 text-center">
+                        <span className="block truncate font-hand text-2xl font-semibold leading-tight text-hk-ink">{member.full_name}</span>
+                        <span className="mt-2 inline-block rounded-full bg-hk-red px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                          {member.title}
+                        </span>
+                      </figcaption>
+                    </figure>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          )}
+
+          <CtaPoster heading={getInvolved.heading} body={getInvolved.body} className="mt-28">
+            <SiteButton to="/events" variant="white">
+              {getInvolved.explore_button_text}
+            </SiteButton>
+            <SiteButton to="/contact" variant="outline-white">
+              {getInvolved.contact_button_text}
+            </SiteButton>
+          </CtaPoster>
         </div>
       </section>
-
-      <section className="py-16">
-        <Reveal className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl mb-6">{whoWeAre.heading}</h2>
-          <p className="text-[#555555] dark:text-gray-400 text-lg leading-relaxed">
-            {whoWeAre.body}
-          </p>
-        </Reveal>
-      </section>
-
-      <section className="py-16 bg-[#FFF8F6] dark:bg-white/5">
-        <Reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl text-center mb-12">{whatWeValue.heading}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {values.map((value, i) => {
-              const Icon = VALUE_ICONS[i % VALUE_ICONS.length];
-              return (
-                <div key={value.title} className="bg-white dark:bg-[#1a1b1e] rounded-2xl p-6 text-center shadow-sm">
-                  <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-br from-[#ffbba1] to-[#fa4e5b] flex items-center justify-center">
-                    <Icon size={24} className="text-white" />
-                  </div>
-                  <h3 className="text-lg mb-2">{value.title}</h3>
-                  <p className="text-sm text-[#555555] dark:text-gray-400 leading-relaxed">{value.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </Reveal>
-      </section>
-
-      <section className="py-20">
-        <Reveal className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl mb-4">{getInvolved.heading}</h2>
-          <p className="text-[#555555] dark:text-gray-400 mb-8 leading-relaxed">
-            {getInvolved.body}
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link
-              to="/events"
-              className="bg-gradient-to-r from-[#ffbba1] to-[#fa4e5b] text-white font-bold tracking-wider text-sm px-8 py-4 rounded-full shadow-[0_8px_20px_rgba(250,78,91,0.4)] hover:shadow-[0_12px_25px_rgba(250,78,91,0.5)] transition-all hover:-translate-y-1"
-            >
-              {getInvolved.explore_button_text}
-            </Link>
-            <Link
-              to="/contact"
-              className="text-gray-600 dark:text-gray-300 font-bold tracking-wider text-sm transition-colors hover:text-[#fa4e5b] underline underline-offset-4"
-            >
-              {getInvolved.contact_button_text}
-            </Link>
-          </div>
-        </Reveal>
-      </section>
-    </div>
+    </>
   );
 }
